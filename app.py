@@ -6,20 +6,26 @@ Created on Sun Jun 15 10:10:58 2025
 """
 
 import streamlit as st
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1) Monkey-patch for cached_download must come before diffusers import!
+# ─────────────────────────────────────────────────────────────────────────────
+import huggingface_hub as _hf
+_hf.cached_download = _hf.hf_hub_download
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2) Now import the rest
+# ─────────────────────────────────────────────────────────────────────────────
 import torch, io, numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 from datetime import datetime
 from diffusers import StableDiffusionPipeline
-import huggingface_hub as _hf
 from shapely.geometry import Polygon
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Monkey-patch for cached_download
-_hf.cached_download = _hf.hf_hub_download
-
+# 3) Cache the Stable-Diffusion pipeline
 # ─────────────────────────────────────────────────────────────────────────────
-# Cache the Stable-Diffusion pipeline
 @st.cache_resource
 def load_pipe():
     device = "cuda" if torch.cuda.is_available() else "cpu"
