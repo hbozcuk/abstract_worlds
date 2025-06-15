@@ -6,7 +6,6 @@ accelerate>=1.7.0
 numpy
 matplotlib
 pillow
-# Shapely removed
 
 
 
