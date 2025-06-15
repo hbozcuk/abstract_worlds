@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+import os, streamlit as st
+if os.environ.get("ST_STATE") == "health-check" or os.environ.get("STREAMLIT_CLOUD_HEALTH_CHECK"):
+    st.write("✅ Health-check OK (skipping heavy imports).")
+    st.stop()
+
 """
 Streamlit app – generates abstract “inner” & “outer” world images
 and compares them with a radar chart and IoU score.
