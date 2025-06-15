@@ -14,70 +14,57 @@ from diffusers import StableDiffusionPipeline
 from shapely.geometry import Polygon
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1) Load & cache the SD2.1 pipeline, with CPU/GPU fallback
+# 1) Define & cache loader (but don't call at import)
 # ─────────────────────────────────────────────────────────────────────────────
 @st.cache_resource
 def load_pipe():
-    # Detect device and set dtype
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    torch_dtype = torch.float16 if device == "cuda" else torch.float32
+    torch_dtype = torch.float16 if device=="cuda" else torch.float32
 
-    # Load model
     pipe = StableDiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-2-1-base",
         torch_dtype=torch_dtype
-    )
-    pipe = pipe.to(device)
+    ).to(device)
 
-    # If running on CPU, enable attention slicing to save RAM
-    if device == "cpu":
+    if device=="cpu":
         pipe.enable_attention_slicing()
-        # Optional offload:
-        # pipe.enable_model_cpu_offload()
 
-    # Show device info in sidebar
-    st.sidebar.write(f"🔧 Device: **{device}**, dtype: **{torch_dtype}**")
     return pipe
 
-pipe = load_pipe()
-
+# Ensure session_state has a slot for our pipe
+if "pipe" not in st.session_state:
+    st.session_state.pipe = None
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2) Metric computation
+# 2) Metric function (unchanged)
 # ─────────────────────────────────────────────────────────────────────────────
 def compute_metrics(path):
     img = Image.open(path).convert("RGB")
     arr = np.array(img)
-
-    # HSV stats
+    # HSV
     hsv = img.convert("HSV")
-    h, s, v = np.array(hsv).transpose(2,0,1)
+    h,s,v = np.array(hsv).transpose(2,0,1)
     hue_mean, sat_mean, val_mean = h.mean(), s.mean(), v.mean()
     sat_std, hue_std, val_std   = s.std(), h.std(), v.std()
-
-    # Contrast (grayscale std)
+    # Contrast
     gray = np.array(img.convert("L"), dtype=float)
     contrast = gray.std()
-
-    # Colorfulness (Hasler–Süsstrunk)
-    R, G, B = arr[:,:,0].astype(float), arr[:,:,1].astype(float), arr[:,:,2].astype(float)
-    rg = R - G
-    yb = 0.5*(R + G) - B
-    std_rg, std_yb = rg.std(), yb.std()
-    mean_rg, mean_yb = rg.mean(), yb.mean()
-    colorfulness = np.sqrt(std_rg**2 + std_yb**2) + 0.3 * np.sqrt(mean_rg**2 + mean_yb**2)
-
-    # Detail (mean gradient magnitude)
+    # Colorfulness
+    R,G,B = arr[:,:,0].astype(float), arr[:,:,1].astype(float), arr[:,:,2].astype(float)
+    rg, yb = R-G, 0.5*(R+G)-B
+    colorfulness = (
+        np.sqrt(rg.std()**2 + yb.std()**2)
+        + 0.3 * np.sqrt(rg.mean()**2 + yb.mean()**2)
+    )
+    # Detail
     gy, gx = np.gradient(gray)
     detail = np.mean(np.sqrt(gx**2 + gy**2))
-
     return [
         hue_mean, sat_mean, val_mean,
         contrast, colorfulness,
         sat_std, hue_std, val_std,
         detail
     ]
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3) Streamlit UI
@@ -88,6 +75,13 @@ inner_txt = st.text_area("İç Dünya:", height=100)
 outer_txt = st.text_area("Dış Dünya:", height=100)
 
 if st.button("Oluştur ve Karşılaştır"):
+    # 3a) Lazy‐load the pipeline
+    if st.session_state.pipe is None:
+        with st.spinner("Model yükleniyor, lütfen bekleyin…"):
+            st.session_state.pipe = load_pipe()
+
+    pipe = st.session_state.pipe
+
     if not inner_txt or not outer_txt:
         st.warning("⚠️ Lütfen her iki metni de girin.")
     else:
@@ -104,23 +98,23 @@ if st.button("Oluştur ve Karşılaştır"):
             img2 = pipe(p2, num_inference_steps=50, guidance_scale=9.0).images[0]
 
         # Display
-        col1, col2 = st.columns(2)
-        with col1:
+        c1, c2 = st.columns(2)
+        with c1:
             st.subheader("İç Dünya Görseli")
             st.image(img1, use_column_width=True)
-        with col2:
+        with c2:
             st.subheader("Dış Dünya Görseli")
             st.image(img2, use_column_width=True)
 
-        # Save locally
+        # Save
         img1.save("inner_abstract.png")
         img2.save("outer_abstract.png")
 
-        # Compute metrics
+        # Metrics
         A = np.array(compute_metrics("inner_abstract.png"))
         B = np.array(compute_metrics("outer_abstract.png"))
 
-        # IoU computation (polygon overlap)
+        # IoU
         labels = [
             "Renk Tonu","Doygunluk","Parlaklık",
             "Kontrast","Renk Canlılığı",
@@ -128,22 +122,20 @@ if st.button("Oluştur ve Karşılaştır"):
             "Detay Seviyesi"
         ]
         angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False)
-        angles = np.concatenate((angles, [angles[0]]))
-        ptsA = [(r*np.cos(a), r*np.sin(a)) for r,a in zip(np.append(A, A[0]), angles)]
-        ptsB = [(r*np.cos(a), r*np.sin(a)) for r,a in zip(np.append(B, B[0]), angles)]
+        angles = np.concatenate((angles,[angles[0]]))
+        ptsA = [(r*np.cos(a), r*np.sin(a)) for r,a in zip(np.append(A,A[0]), angles)]
+        ptsB = [(r*np.cos(a), r*np.sin(a)) for r,a in zip(np.append(B,B[0]), angles)]
         polyA, polyB = Polygon(ptsA), Polygon(ptsB)
-
-        inter = polyA.intersection(polyB).area
-        union = polyA.union(polyB).area
-        iou   = inter / union if union > 0 else 0.0
+        inter, uni = polyA.intersection(polyB).area, polyA.union(polyB).area
+        iou = inter/uni if uni>0 else 0.0
         st.write(f"**Benzerlik (IoU) = {iou:.3f}**")
 
-        # Radar chart
+        # Radar
         fig, ax = plt.subplots(subplot_kw={'projection':'polar'}, figsize=(6,6))
-        ax.plot(angles, np.append(A, A[0]), label="İç Dünya", linewidth=2)
-        ax.fill(angles, np.append(A, A[0]), alpha=0.25)
-        ax.plot(angles, np.append(B, B[0]), label="Dış Dünya", linewidth=2)
-        ax.fill(angles, np.append(B, B[0]), alpha=0.25)
+        ax.plot(angles, np.append(A,A[0]), label="İç Dünya", linewidth=2)
+        ax.fill(angles, np.append(A,A[0]), alpha=0.25)
+        ax.plot(angles, np.append(B,B[0]), label="Dış Dünya", linewidth=2)
+        ax.fill(angles, np.append(B,B[0]), alpha=0.25)
 
         ax.set_xticks(angles[:-1])
         ax.set_xticklabels(labels, fontsize=10)
