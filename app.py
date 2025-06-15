@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Streamlit app – compares abstract "inner" & "outer" world images.
-Updated deployment-friendly version without Shapely
+Updated deployment-friendly version without Shapely or cv2
 """
 
 import os, sys, traceback
@@ -35,7 +35,6 @@ try:
     from PIL import Image
     import torch
     from diffusers import StableDiffusionPipeline
-    import cv2
 
     ##############################################################################
     # Lazy loader that uses your HF_TOKEN
@@ -78,8 +77,11 @@ try:
         R,G,B = arr[...,0].astype(float), arr[...,1].astype(float), arr[...,2].astype(float)
         rg, yb = R-G, 0.5*(R+G)-B
         colorfulness = np.sqrt(rg.std()**2 + yb.std()**2) + 0.3 * np.sqrt(rg.mean()**2 + yb.mean()**2)
+        
+        # Calculate detail without cv2
         gy, gx = np.gradient(gray)
         detail = np.mean(np.sqrt(gx**2 + gy**2))
+        
         return [
             hue_mean, sat_mean, val_mean,
             contrast, colorfulness,
@@ -88,16 +90,17 @@ try:
         ]
 
     ##############################################################################
-    # Simplified IoU calculation without Shapely
+    # Simplified IoU calculation
     ##############################################################################
     def calculate_iou(A, B):
-        """Calculate Intersection over Union using convex hull approximation"""
-        min_vals = np.minimum(A, B)
-        max_vals = np.maximum(A, B)
+        """Calculate Intersection over Union using min/max approach"""
+        # Normalize metrics to same scale
+        A_norm = (A - np.min(A)) / (np.max(A) - np.min(A) + 1e-10)
+        B_norm = (B - np.min(B)) / (np.max(B) - np.min(B) + 1e-10)
         
         # Calculate intersection and union
-        intersection = np.sum(min_vals)
-        union = np.sum(max_vals)
+        intersection = np.sum(np.minimum(A_norm, B_norm))
+        union = np.sum(np.maximum(A_norm, B_norm))
         
         # Avoid division by zero
         return intersection / union if union > 0 else 0
@@ -127,9 +130,9 @@ try:
                 img2 = pipe(p2, generator=generator, num_inference_steps=50, guidance_scale=9.0).images[0]
 
             col1, col2 = st.columns(2)
-            col1.subheader("İç Dünya");  
+            col1.subheader("İç Dünya")  
             col1.image(img1, use_column_width=True)
-            col2.subheader("Dış Dünya"); 
+            col2.subheader("Dış Dünya") 
             col2.image(img2, use_column_width=True)
 
             # Convert to arrays and compute metrics
@@ -153,12 +156,12 @@ try:
             ax.fill(θ, np.append(A,A[0]), alpha=0.25)
             ax.plot(θ, np.append(B,B[0]), label="Dış Dünya", lw=2)
             ax.fill(θ, np.append(B,B[0]), alpha=0.25)
-            ax.set_xticks(θ[:-1]); 
+            ax.set_xticks(θ[:-1]) 
             ax.set_xticklabels(labels, fontsize=9)
             ax.set_rlabel_position(30)
             ax.legend(loc="upper right", bbox_to_anchor=(1.25,1.1))
             ax.set_title("Son Görsel Metrikleri", va="bottom", pad=20)
-            plt.tight_layout(); 
+            plt.tight_layout() 
             st.pyplot(fig)
 
 except Exception as e:
