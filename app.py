@@ -1,18 +1,38 @@
 # -*- coding: utf-8 -*-
-import os, streamlit as st
+"""
+Streamlit app – compares abstract “inner” & “outer” world images.
+• Startup is ultra-light: model files never download during health-check.
+• A dummy stub hides the real `diffusers` package until the user clicks.
+"""
 
-os.environ["STREAMLIT_SERVER_FILEWATCHERTYPE"] = "none"
-st.session_state.clear()  # ← wipe old cached objects
+##############################################################################
+# 0)  Minimal Streamlit initialization (page config must be first)
+##############################################################################
+import os, sys, types
+os.environ["STREAMLIT_SERVER_FILEWATCHERTYPE"] = "none"   # silence file-watcher
 
+import streamlit as st
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
 
-# Abort instantly during Streamlit-Cloud health-probe
+##############################################################################
+# 1)  Abort instantly during Streamlit-Cloud health probe
+##############################################################################
 if os.environ.get("ST_STATE") == "health-check":
     st.stop()
 
+##############################################################################
+# 2)  Insert a stub “diffusers” module so early imports do nothing
+##############################################################################
+class _DiffusersStub(types.ModuleType):
+    """Harmless stand-in that blocks real downloads during startup."""
+    _is_stub = True
+    def __getattr__(self, name):
+        raise RuntimeError("🚫 diffusers is stubbed until the button is pressed.")
+
+sys.modules.setdefault("diffusers", _DiffusersStub("diffusers"))
 
 ##############################################################################
-# 1) Lightweight standard-library / NumPy imports (safe for fast startup)
+# 3)  Lightweight third-party imports (safe before model load)
 ##############################################################################
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,30 +40,29 @@ from PIL import Image
 from shapely.geometry import Polygon
 
 ##############################################################################
-# 2) Lazy loader – diffusers / torch imported ONLY here
+# 4)  Lazy loader – replaces stub with real diffusers when needed
 ##############################################################################
 _PIPE = None  # global cache inside the process
 
-
 def load_pipeline():
-    """
-    Create (or return) the Stable-Diffusion 2.1 pipeline.
-    Heavy imports happen here, never at file-top.
-    """
+    """Return Stable-Diffusion 2.1 pipeline, loading it on first call."""
     global _PIPE
     if _PIPE is not None:
         return _PIPE
 
-    # heavy imports NOW:
+    # Remove stub so the real package can import
+    if getattr(sys.modules.get("diffusers"), "_is_stub", False):
+        del sys.modules["diffusers"]
+
     import torch
     from diffusers import StableDiffusionPipeline
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.float16 if device == "cuda" else torch.float32
+    dtype  = torch.float16 if device == "cuda" else torch.float32
 
     _PIPE = StableDiffusionPipeline.from_pretrained(
         "stabilityai/stable-diffusion-2-1-base",
-        torch_dtype=dtype,
+        torch_dtype=dtype
     ).to(device)
 
     if device == "cpu":
@@ -51,62 +70,40 @@ def load_pipeline():
 
     return _PIPE
 
-
 ##############################################################################
-# 3) Metric computation helper
+# 5)  Metric computation helper
 ##############################################################################
 def compute_metrics(path: str):
-    """
-    Return 9 visual metrics for a saved image.
-    """
-    img = Image.open(path).convert("RGB")
-    arr = np.array(img)
-
-    hsv = img.convert("HSV")
-    h, s, v = np.array(hsv).transpose(2, 0, 1)
+    img  = Image.open(path).convert("RGB")
+    arr  = np.array(img)
+    hsv  = img.convert("HSV")
+    h,s,v = np.array(hsv).transpose(2,0,1)
     hue_mean, sat_mean, val_mean = h.mean(), s.mean(), v.mean()
-    sat_std, hue_std, val_std = s.std(), h.std(), v.std()
-
+    sat_std, hue_std, val_std    = s.std(), h.std(), v.std()
     gray = np.array(img.convert("L"), float)
     contrast = gray.std()
-
-    R, G, B = arr[..., 0].astype(float), arr[..., 1].astype(float), arr[..., 2].astype(float)
-    rg, yb = R - G, 0.5 * (R + G) - B
-    colorfulness = np.sqrt(rg.std() ** 2 + yb.std() ** 2) + 0.3 * np.sqrt(
-        rg.mean() ** 2 + yb.mean() ** 2
-    )
-
-    gy, gx = np.gradient(gray)
+    R,G,B = arr[...,0].astype(float), arr[...,1].astype(float), arr[...,2].astype(float)
+    rg, yb = R-G, 0.5*(R+G)-B
+    colorfulness = np.sqrt(rg.std()**2 + yb.std()**2) + 0.3*np.sqrt(rg.mean()**2 + yb.mean()**2)
+    gy,gx = np.gradient(gray)
     detail = np.mean(np.sqrt(gx**2 + gy**2))
-
-    return [
-        hue_mean,
-        sat_mean,
-        val_mean,
-        contrast,
-        colorfulness,
-        sat_std,
-        hue_std,
-        val_std,
-        detail,
-    ]
-
+    return [hue_mean,sat_mean,val_mean,contrast,colorfulness,sat_std,hue_std,val_std,detail]
 
 ##############################################################################
-# 4) Streamlit UI
+# 6)  Streamlit UI
 ##############################################################################
 st.title("İç ve Dış Dünyalarımızın Soyut Sanatı")
 
-inner_txt = st.text_area("📖 İç Dünya:", height=120)
+inner_txt = st.text_area("📖 İç Dünya:",  height=120)
 outer_txt = st.text_area("🌍 Dış Dünya:", height=120)
 
 if st.button("🎨 Oluştur ve Karşılaştır"):
     if not inner_txt or not outer_txt:
-        st.warning("⚠️ Lütfen hem iç hem dış dünya metinlerini girin.")
+        st.warning("⚠️ Lütfen her iki metni de girin.")
         st.stop()
 
     # 1) Load model on demand
-    with st.spinner("📥 Model indiriliyor / yükleniyor…"):
+    with st.spinner("📥 Model yükleniyor…"):
         pipe = load_pipeline()
 
     # 2) Generate images
@@ -129,22 +126,24 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
     # 5) IoU resemblance
     labels = [
         "Renk Tonu","Doygunluk","Parlaklık","Kontrast",
-        "Renk Canlılığı","Doygunluk Sapması","Renk Tonu Sapması",
-        "Parlaklık Sapması","Detay Seviyesi"
+        "Renk Canlılığı","Doygunluk Sap.","Renk Tonu Sap.",
+        "Parlaklık Sap.","Detay Seviyesi"
     ]
-    angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False)
-    angles = np.concatenate((angles, [angles[0]]))
-
-    ptsA = [(r * np.cos(a), r * np.sin(a)) for r, a in zip(np.append(A, A[0]), angles)]
-    ptsB = [(r * np.cos(a), r * np.sin(a)) for r, a in zip(np.append(B, B[0]), angles)]
+    θ = np.linspace(0, 2*np.pi, len(labels), endpoint=False)
+    θ = np.concatenate((θ,[θ[0]]))
+    ptsA = [(r*np.cos(a), r*np.sin(a)) for r,a in zip(np.append(A,A[0]), θ)]
+    ptsB = [(r*np.cos(a), r*np.sin(a)) for r,a in zip(np.append(B,B[0]), θ)]
     iou = Polygon(ptsA).intersection(Polygon(ptsB)).area / Polygon(ptsA).union(Polygon(ptsB)).area
     st.markdown(f"**🔍 Benzerlik (IoU): {iou:.3f}**")
 
     # 6) Radar chart
-    fig, ax = plt.subplots(subplot_kw={"projection": "polar"}, figsize=(6, 6))
-    ax.plot(angles, np.append(A, A[0]), label="İç Dünya", lw=2)
-    ax.fill(angles, np.append(A, A[0]), alpha=0.25)
-    ax.plot(angles, np.append(B, B[0]), label="Dış Dünya", lw=2)
-    ax.fill(angles, np.append(B, B[0]), alpha=0.25)
-    ax.set_xticks(angles[:-1]); ax.set_xticklabels(labels, fontsize=9)
+    fig, ax = plt.subplots(subplot_kw={"projection":"polar"}, figsize=(6,6))
+    ax.plot(θ, np.append(A,A[0]), label="İç Dünya", lw=2)
+    ax.fill(θ, np.append(A,A[0]), alpha=0.25)
+    ax.plot(θ, np.append(B,B[0]), label="Dış Dünya", lw=2)
+    ax.fill(θ, np.append(B,B[0]), alpha=0.25)
+    ax.set_xticks(θ[:-1]); ax.set_xticklabels(labels, fontsize=9)
     ax.set_rlabel_position(30)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.25,1.1))
+    ax.set_title("Son Görsel Metrikleri", va="bottom", pad=20)
+    plt.tight_layout(); st.pyplot(fig)
