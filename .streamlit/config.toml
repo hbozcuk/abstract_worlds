@@ -1,5 +1,3 @@
-[watcher]
-ignorePatterns = [
-  "torch/*",
-  "torch._classes/*"
-]
+[server]
+fileWatcherType = "none"
+
