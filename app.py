@@ -26,6 +26,8 @@ if "DIFFUSERS_CHECK" not in os.environ:
 # 1) Manual lazy loader — diffusers only imported here
 # ─────────────────────────────────────────────────────────────────────────────
 def load_pipeline():
+    print(">>> DEBUG: load_pipeline() executed!")
+
     # now we import only when needed
     import torch
     from diffusers import StableDiffusionPipeline
