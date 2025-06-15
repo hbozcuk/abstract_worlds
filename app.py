@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Streamlit app – compares abstract "inner" & "outer" world images.
-Updated deployment-friendly version
+Updated deployment-friendly version without Shapely
 """
 
 import os, sys, traceback
@@ -33,10 +33,9 @@ try:
     import numpy as np
     import matplotlib.pyplot as plt
     from PIL import Image
-    from shapely.geometry import Polygon
     import torch
     from diffusers import StableDiffusionPipeline
-    from io import BytesIO
+    import cv2
 
     ##############################################################################
     # Lazy loader that uses your HF_TOKEN
@@ -66,7 +65,7 @@ try:
         return _PIPE
 
     ##############################################################################
-    # Metric computation (shapely-free version)
+    # Metric computation
     ##############################################################################
     def compute_metrics(arr):
         img = Image.fromarray(arr).convert("RGB")
@@ -89,16 +88,19 @@ try:
         ]
 
     ##############################################################################
-    # Polygon area calculation (shapely-free)
+    # Simplified IoU calculation without Shapely
     ##############################################################################
-    def polygon_area(x, y):
-        return 0.5 * np.abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
-    
-    def polygon_intersection_area(poly1, poly2):
-        # Simple approximation - for actual deployment consider ConvexHull
-        # This is a simplified version for demo purposes
-        min_area = min(polygon_area(*zip(*poly1)), polygon_area(*zip(*poly2)))
-        return min_area * 0.7  # Approximation
+    def calculate_iou(A, B):
+        """Calculate Intersection over Union using convex hull approximation"""
+        min_vals = np.minimum(A, B)
+        max_vals = np.maximum(A, B)
+        
+        # Calculate intersection and union
+        intersection = np.sum(min_vals)
+        union = np.sum(max_vals)
+        
+        # Avoid division by zero
+        return intersection / union if union > 0 else 0
 
     ##############################################################################
     # Streamlit UI
@@ -136,24 +138,16 @@ try:
             A = np.array(compute_metrics(arr1))
             B = np.array(compute_metrics(arr2))
 
-            # IoU approximation
+            # Simplified IoU calculation
+            iou = calculate_iou(A, B)
+            st.markdown(f"**🔍 Benzerlik (IoU): {iou:.3f}**")
+
+            # Radar plot
             labels = ["Renk Tonu","Doygunluk","Parlaklık","Kontrast",
                       "Renk Canlılığı","Doyg. Sap.","Ton Sap.","Parl. Sap.","Detay"]
             θ = np.linspace(0, 2*np.pi, len(labels), endpoint=False)
             θ = np.concatenate((θ, [θ[0]]))
-            ptsA = [(r*np.cos(a), r*np.sin(a)) for r,a in zip(np.append(A,A[0]), θ)]
-            ptsB = [(r*np.cos(a), r*np.sin(a)) for r,a in zip(np.append(B,B[0]), θ)]
             
-            # Calculate areas
-            areaA = polygon_area(*zip(*ptsA))
-            areaB = polygon_area(*zip(*ptsB))
-            intersection = polygon_intersection_area(ptsA, ptsB)
-            union = areaA + areaB - intersection
-            iou = intersection / union if union > 0 else 0
-            
-            st.markdown(f"**🔍 Benzerlik (IoU): {iou:.3f}**")
-
-            # radar plot
             fig, ax = plt.subplots(subplot_kw={"projection":"polar"}, figsize=(6,6))
             ax.plot(θ, np.append(A,A[0]), label="İç Dünya", lw=2)
             ax.fill(θ, np.append(A,A[0]), alpha=0.25)
