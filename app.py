@@ -4,6 +4,9 @@ Created on Sun Jun 15 10:10:58 2025
 @author: hbozc
 """
 
+import os
+os.environ["STREAMLIT_SERVER_FILEWATCHERTYPE"] = "none"
+
 import streamlit as st
 import torch
 import numpy as np
