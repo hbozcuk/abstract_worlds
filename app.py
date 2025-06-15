@@ -13,6 +13,15 @@ import matplotlib.pyplot as plt
 from PIL import Image
 from shapely.geometry import Polygon
 
+import inspect, sys, textwrap, pathlib, re, os
+if "DIFFUSERS_CHECK" not in os.environ:
+    os.environ["DIFFUSERS_CHECK"] = "1"
+    src = pathlib.Path(__file__).read_text().splitlines()
+    offending = [f"{i:>3}: {line}" for i,line in enumerate(src,1) if re.search(r'diffusers', line)]
+    print(">>> LINES CONTAINING 'diffusers' AT STARTUP:")
+    print("\n".join(offending) or ">>> None <<<")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) Manual lazy loader — diffusers only imported here
 # ─────────────────────────────────────────────────────────────────────────────
