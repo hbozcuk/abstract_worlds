@@ -1,22 +1,15 @@
 # -*- coding: utf-8 -*-
-"""
-Streamlit app – compares “inner” & “outer” world images.
-The Stable-Diffusion 2.1 model downloads **only after** the user clicks
-the button, so the Streamlit-Cloud health-check is lightning-fast.
-"""
+import os, streamlit as st
 
-##############################################################################
-# 0) Absolutely minimal Streamlit setup – page config MUST be first
-##############################################################################
-import os
-os.environ["STREAMLIT_SERVER_FILEWATCHERTYPE"] = "none"      # silence watcher
+os.environ["STREAMLIT_SERVER_FILEWATCHERTYPE"] = "none"
+st.session_state.clear()  # ← wipe old cached objects
 
-import streamlit as st
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
 
-# ── Abort instantly if this is just Streamlit Cloud’s health probe ──────────
-if os.environ.get("ST_STATE") == "health-check":  # Cloud sets this env-var
+# Abort instantly during Streamlit-Cloud health-probe
+if os.environ.get("ST_STATE") == "health-check":
     st.stop()
+
 
 ##############################################################################
 # 1) Lightweight standard-library / NumPy imports (safe for fast startup)
