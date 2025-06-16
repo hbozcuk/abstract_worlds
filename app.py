@@ -33,7 +33,7 @@ from PIL import Image
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
 
 # Health check handling\ nif os.environ.get("ST_STATE") == "health-check":
-    st.stop()
+st.stop()
 
 # Get Hugging Face token
 HF_TOKEN = st.secrets.get("HUGGINGFACEHUB_API_TOKEN", None)
