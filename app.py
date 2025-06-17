@@ -1,9 +1,7 @@
-# File: app.py
-
 # -*- coding: utf-8 -*-
 """
 Streamlit app – compares abstract "inner" & "outer" world images.
-Uses Hugging Face Inference API to avoid heavy local model loading.
+Uses Hugging Face InferenceClient for remote text-to-image generation.
 """
 
 # 0) Monkey-patch asyncio.get_running_loop to avoid Streamlit watcher bug
@@ -17,18 +15,16 @@ def _safe_get_loop():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         return loop
-
 asyncio.get_running_loop = _safe_get_loop
 
 import os
-
 # Configure environment for Streamlit Cloud
 os.environ["STREAMLIT_SERVER_FILEWATCHERTYPE"] = "none"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["PYTHONWARNINGS"] = "ignore"
 
 import streamlit as st
-from huggingface_hub import InferenceApi
+from huggingface_hub import InferenceClient
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -46,9 +42,9 @@ if not HF_TOKEN:
     st.stop()
 
 @st.cache_resource(show_spinner=False)
-def load_api():
-    # Initialize Inference API client for a lightweight remote model
-    return InferenceApi(repo_id="prompthero/openjourney", token=HF_TOKEN, wait_for_model=True)
+def get_client():
+    # Initialize an InferenceClient for text-to-image
+    return InferenceClient(token=HF_TOKEN)
 
 
 def compute_metrics(arr):
@@ -81,14 +77,22 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
     if not inner_txt or not outer_txt:
         st.warning("⚠️ Lütfen her iki metni de girin.")
     else:
-        api = load_api()
+        client = get_client()
         with st.spinner("🖼️ Görseller üretiliyor…"):
-            # Remote inference: returns a PIL Image or list of PIL Images
-            imgs1 = api(f"mdjrny-v4 style abstract art: {inner_txt}")
-            imgs2 = api(f"mdjrny-v4 style abstract art: {outer_txt}")
-            # Unpack list if necessary
-            img1 = imgs1[0] if isinstance(imgs1, (list, tuple)) else imgs1
-            img2 = imgs2[0] if isinstance(imgs2, (list, tuple)) else imgs2
+            # Generate images remotely
+            imgs1 = client.text_to_image(
+                model="prompthero/openjourney",
+                inputs=inner_txt,
+                wait_for_model=True,
+            )
+            imgs2 = client.text_to_image(
+                model="prompthero/openjourney",
+                inputs=outer_txt,
+                wait_for_model=True,
+            )
+            # imgs1, imgs2 are lists of PIL Images
+            img1 = imgs1[0]
+            img2 = imgs2[0]
 
         col1, col2 = st.columns(2)
         with col1:
