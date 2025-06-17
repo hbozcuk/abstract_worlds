@@ -84,17 +84,19 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
     else:
         api = load_api()
         with st.spinner("🖼️ Görseller üretiliyor…"):
-            # Remote inference: returns a list of PIL images
+            # Remote inference: returns a PIL Image or list of PIL Images
+            # invoke API directly with prompt and options
             imgs1 = api(
-                {"inputs": f"mdjrny-v4 style abstract art: {inner_txt}", "options": {"wait_for_model": True}},
-                use_cache=False
+                inputs=f"mdjrny-v4 style abstract art: {inner_txt}",
+                options={"wait_for_model": True}
             )
             imgs2 = api(
-                {"inputs": f"mdjrny-v4 style abstract art: {outer_txt}", "options": {"wait_for_model": True}},
-                use_cache=False
+                inputs=f"mdjrny-v4 style abstract art: {outer_txt}",
+                options={"wait_for_model": True}
             )
-            img1 = Image.open(imgs1[0]) if isinstance(imgs1, list) else Image.open(imgs1)
-            img2 = Image.open(imgs2[0]) if isinstance(imgs2, list) else Image.open(imgs2)
+            # API may return a single PIL Image or a list
+            img1 = imgs1[0] if isinstance(imgs1, list) else imgs1
+            img2 = imgs2[0] if isinstance(imgs2, list) else imgs2
 
         col1, col2 = st.columns(2)
         with col1:
