@@ -21,7 +21,6 @@ def _safe_get_loop():
 asyncio.get_running_loop = _safe_get_loop
 
 import os
-import traceback
 
 # Configure environment for Streamlit Cloud
 os.environ["STREAMLIT_SERVER_FILEWATCHERTYPE"] = "none"
@@ -49,10 +48,7 @@ if not HF_TOKEN:
 @st.cache_resource(show_spinner=False)
 def load_api():
     # Initialize Inference API client for a lightweight remote model
-    # enable wait_for_model at client init
-    return InferenceApi(repo_id="prompthero/openjourney", token=HF_TOKEN, wait_for_model=True)  :
-    # Initialize Inference API client for a lightweight remote model
-    return InferenceApi(repo_id="prompthero/openjourney", token=HF_TOKEN)
+    return InferenceApi(repo_id="prompthero/openjourney", token=HF_TOKEN, wait_for_model=True)
 
 
 def compute_metrics(arr):
@@ -90,9 +86,9 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
             # Remote inference: returns a PIL Image or list of PIL Images
             imgs1 = api(f"mdjrny-v4 style abstract art: {inner_txt}")
             imgs2 = api(f"mdjrny-v4 style abstract art: {outer_txt}")
-            # API may return a single PIL Image or a list
-            img1 = imgs1[0] if isinstance(imgs1, list) else imgs1
-            img2 = imgs2[0] if isinstance(imgs2, list) else imgs2[0] if isinstance(imgs2, list) else imgs2
+            # Unpack list if necessary
+            img1 = imgs1[0] if isinstance(imgs1, (list, tuple)) else imgs1
+            img2 = imgs2[0] if isinstance(imgs2, (list, tuple)) else imgs2
 
         col1, col2 = st.columns(2)
         with col1:
