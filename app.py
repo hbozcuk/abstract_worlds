@@ -47,7 +47,10 @@ if not HF_TOKEN:
 # 3) Cached Hugging Face client (bound to model once)
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def get_client():
+    # Initialize a shared InferenceClient; wait_for_model ensures model readiness
+    return InferenceClient(token=HF_TOKEN, wait_for_model=True):
     return InferenceClient(model="prompthero/openjourney", token=HF_TOKEN, wait_for_model=True)
 
 # ---------------------------------------------------------------------------
@@ -86,8 +89,15 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
 
     client = get_client()
     with st.spinner("🖼️ Görseller üretiliyor…"):
+        # Generate images remotely specifying the model
         img1: Image.Image = client.text_to_image(
+            model="prompthero/openjourney",
             prompt=f"mdjrny-v4 style abstract art: {inner_txt}",
+            out_type="pil"
+        )
+        img2: Image.Image = client.text_to_image(
+            model="prompthero/openjourney",
+            prompt=f"mdjrny-v4 style abstract art: {outer_txt}",
             out_type="pil"
         )
         img2: Image.Image = client.text_to_image(
