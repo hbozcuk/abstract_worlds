@@ -1,5 +1,5 @@
 streamlit>=1.45.0
-huggingface-hub>=0.14.1
+huggingface-hub>=0.23.1
 numpy
 matplotlib
 pillow
