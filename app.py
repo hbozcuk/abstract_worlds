@@ -43,8 +43,8 @@ if not HF_TOKEN:
 
 @st.cache_resource(show_spinner=False)
 def get_client():
-    # Initialize an InferenceClient for text-to-image
-    return InferenceClient(token=HF_TOKEN)
+    # Initialize an InferenceClient bound to the model so we don't pass it each call
+    return InferenceClient(model="prompthero/openjourney", token=HF_TOKEN)
 
 
 def compute_metrics(arr):
@@ -80,18 +80,16 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         client = get_client()
         with st.spinner("🖼️ Görseller üretiliyor…"):
             # Generate images remotely
-            imgs1 = client.text_to_image(
-                model="prompthero/openjourney",
-                inputs=inner_txt,
+            img1 = client.text_to_image(
+                prompt=f"mdjrny-v4 style abstract art: {inner_txt}",
                 wait_for_model=True,
+                out_type="pil"
             )
-            imgs2 = client.text_to_image(
-                model="prompthero/openjourney",
-                inputs=outer_txt,
+            img2 = client.text_to_image(
+                prompt=f"mdjrny-v4 style abstract art: {outer_txt}",
                 wait_for_model=True,
-            )
-            # imgs1, imgs2 are lists of PIL Images
-            img1 = imgs1[0]
+                out_type="pil"
+            ) = imgs1[0]
             img2 = imgs2[0]
 
         col1, col2 = st.columns(2)
