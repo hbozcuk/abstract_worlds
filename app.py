@@ -39,8 +39,8 @@ if not HF_TOKEN:
 # 3) Cached client
 @st.cache_resource(show_spinner=False)
 def get_client():
-    # Initialize the InferenceClient with model readiness
-    return InferenceClient(token=HF_TOKEN, wait_for_model=True)
+    # Initialize the InferenceClient with your token
+    return InferenceClient(token=HF_TOKEN)
 
 # 4) Utility functions
 def compute_metrics(arr: np.ndarray):
