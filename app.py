@@ -52,7 +52,7 @@ if not HF_TOKEN:
 # ---------------------------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def get_client():
-    return InferenceClient(model="prompthero/openjourney", token=HF_TOKEN)
+    return InferenceClient(model="prompthero/openjourney", token=HF_TOKEN, wait_for_model=True)
 
 # ---------------------------------------------------------------------------
 # 4) Utility functions
@@ -94,13 +94,11 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
     with st.spinner("🖼️ Görseller üretiliyor…"):
         img1: Image.Image = client.text_to_image(
             prompt=f"mdjrny-v4 style abstract art: {inner_txt}",
-            wait_for_model=True,
             out_type="pil"
         )
 
         img2: Image.Image = client.text_to_image(
             prompt=f"mdjrny-v4 style abstract art: {outer_txt}",
-            wait_for_model=True,
             out_type="pil"
         )
 
