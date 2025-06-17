@@ -49,6 +49,9 @@ if not HF_TOKEN:
 @st.cache_resource(show_spinner=False)
 def load_api():
     # Initialize Inference API client for a lightweight remote model
+    # enable wait_for_model at client init
+    return InferenceApi(repo_id="prompthero/openjourney", token=HF_TOKEN, wait_for_model=True)  :
+    # Initialize Inference API client for a lightweight remote model
     return InferenceApi(repo_id="prompthero/openjourney", token=HF_TOKEN)
 
 
@@ -85,18 +88,11 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         api = load_api()
         with st.spinner("🖼️ Görseller üretiliyor…"):
             # Remote inference: returns a PIL Image or list of PIL Images
-            # invoke API directly with prompt and options
-            imgs1 = api(
-                inputs=f"mdjrny-v4 style abstract art: {inner_txt}",
-                options={"wait_for_model": True}
-            )
-            imgs2 = api(
-                inputs=f"mdjrny-v4 style abstract art: {outer_txt}",
-                options={"wait_for_model": True}
-            )
+            imgs1 = api(f"mdjrny-v4 style abstract art: {inner_txt}")
+            imgs2 = api(f"mdjrny-v4 style abstract art: {outer_txt}")
             # API may return a single PIL Image or a list
             img1 = imgs1[0] if isinstance(imgs1, list) else imgs1
-            img2 = imgs2[0] if isinstance(imgs2, list) else imgs2
+            img2 = imgs2[0] if isinstance(imgs2, list) else imgs2[0] if isinstance(imgs2, list) else imgs2
 
         col1, col2 = st.columns(2)
         with col1:
