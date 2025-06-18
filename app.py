@@ -3,19 +3,6 @@
 Streamlit app – compares abstract "inner" & "outer" world images using remote inference.
 """
 
-# 0) Fix asyncio watcher bug
-import asyncio
-_orig = asyncio.get_running_loop
-
-def _safe_loop():
-    try:
-        return _orig()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        return loop
-asyncio.get_running_loop = _safe_loop
-
 # 1) Imports & env config
 import os
 os.environ["STREAMLIT_SERVER_FILEWATCHERTYPE"] = "none"
@@ -26,18 +13,22 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+import io
 from huggingface_hub import InferenceClient
 
 # 2) Page config & token
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
 HF_TOKEN = st.secrets.get("HUGGINGFACEHUB_API_TOKEN")
+
 if not HF_TOKEN:
-    st.error("❌ Hugging Face token eksik! Lütfen Streamlit Secrets'a ekleyin.")
+    st.error("❌ Hugging Face token eksik! Lütfen Streamlit Secrets'a HUGGINGFACEHUB_API_TOKEN adıyla ekleyin.")
     st.stop()
 
 # 3) Utility functions
-
 def compute_metrics(arr: np.ndarray):
+    # Handle RGBA images by converting to RGB
+    if arr.shape[-1] == 4:
+        arr = arr[..., :3]
     r, g, b = arr[...,0], arr[...,1], arr[...,2]
     brightness = (r + g + b).mean() / 3
     contrast = np.std(r) + np.std(g) + np.std(b)
@@ -56,28 +47,28 @@ def calculate_iou(A, B):
 
 # 4) UI
 st.title("İç ve Dış Dünyalarımızın Soyut Sanatı")
-inner_txt = st.text_area("📖 İç Dünya:", height=120)
-outer_txt = st.text_area("🌍 Dış Dünya:", height=120)
+inner_txt = st.text_area("📖 İç Dünya:", height=120, value="Rüyalarımda gördüğüm renkli dünya")
+outer_txt = st.text_area("🌍 Dış Dünya:", height=120, value="Şehirdeki gri binalar ve trafik")
 
 if st.button("🎨 Oluştur ve Karşılaştır"):
     if not inner_txt or not outer_txt:
         st.warning("⚠️ Lütfen her iki metni de girin.")
         st.stop()
 
-    # Initialize client here for faster startup
     client = InferenceClient(model="prompthero/openjourney", token=HF_TOKEN)
 
     with st.spinner("🖼️ Görseller üretiliyor…"):
         try:
-            results1 = client.text_to_image(prompt=inner_txt)
-            results2 = client.text_to_image(prompt=outer_txt)
-            img1 = results1[0] if isinstance(results1, (list, tuple)) else results1
-            img2 = results2[0] if isinstance(results2, (list, tuple)) else results2
+            # Convert bytes to PIL Images
+            img_bytes1 = client.text_to_image(prompt=inner_txt)
+            img_bytes2 = client.text_to_image(prompt=outer_txt)
+            img1 = Image.open(io.BytesIO(img_bytes1)).convert("RGB")
+            img2 = Image.open(io.BytesIO(img_bytes2)).convert("RGB")
         except Exception as e:
-            st.error(f"❌ Görsel oluşturulurken bir hata oluştu: {e}")
+            st.error(f"❌ Görsel oluşturulurken hata: {str(e)}")
             st.stop()
 
-    # Display images side by side
+    # Display images
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("İç Dünya")
@@ -86,26 +77,32 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         st.subheader("Dış Dünya")
         st.image(img2, use_column_width=True)
 
-    # Compute metrics and similarity
-    m1 = compute_metrics(np.array(img1))
-    m2 = compute_metrics(np.array(img2))
-    iou = calculate_iou(m1, m2)
-    st.markdown(f"**🔍 Benzerlik Oranı: {iou:.3f}**")
+    # Compute metrics
+    try:
+        arr1 = np.array(img1)
+        arr2 = np.array(img2)
+        m1 = compute_metrics(arr1)
+        m2 = compute_metrics(arr2)
+        iou = calculate_iou(m1, m2)
+        st.success(f"**🔍 Benzerlik Oranı: {iou:.3f}**")
 
-    # Radar chart
-    labels = ["Parlaklık","Kontrast","Renk Canlılığı","Detay"]
-    angles = np.linspace(0,2*np.pi,len(labels),endpoint=False)
-    angles = np.concatenate([angles,[angles[0]]])
-    m1_plot = m1 + [m1[0]]
-    m2_plot = m2 + [m2[0]]
+        # Radar chart
+        labels = ["Parlaklık","Kontrast","Renk Canlılığı","Detay"]
+        angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False)
+        angles = np.concatenate([angles, [angles[0]]])
+        m1_plot = m1 + [m1[0]]
+        m2_plot = m2 + [m2[0]]
 
-    fig, ax = plt.subplots(figsize=(6,6), subplot_kw={"polar":True})
-    ax.plot(angles, m1_plot, 'o-', label='İç Dünya')
-    ax.fill(angles, m1_plot, alpha=0.25)
-    ax.plot(angles, m2_plot, 'o-', label='Dış Dünya')
-    ax.fill(angles, m2_plot, alpha=0.25)
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(labels)
-    ax.set_title("Görsel Metrik Karşılaştırması", va='bottom')
-    ax.legend(loc='upper right', bbox_to_anchor=(1.3,1.1))
-    st.pyplot(fig)
+        fig, ax = plt.subplots(figsize=(6,6), subplot_kw={"polar":True})
+        ax.plot(angles, m1_plot, 'o-', label='İç Dünya')
+        ax.fill(angles, m1_plot, alpha=0.25)
+        ax.plot(angles, m2_plot, 'o-', label='Dış Dünya')
+        ax.fill(angles, m2_plot, alpha=0.25)
+        ax.set_xticks(angles[:-1])
+        ax.set_xticklabels(labels)
+        ax.set_title("Görsel Metrik Karşılaştırması", va='bottom')
+        ax.legend(loc='upper right', bbox_to_anchor=(1.3,1.1))
+        st.pyplot(fig)
+        plt.close(fig)  # Prevent memory leaks
+    except Exception as e:
+        st.error(f"❌ Analiz hatası: {str(e)}")
