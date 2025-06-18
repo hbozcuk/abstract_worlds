@@ -14,7 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
-from huggingface_hub import InferenceClient
+import requests
 
 # 2) Page config & token
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
@@ -45,6 +45,29 @@ def calculate_iou(A, B):
     B_norm = (B - B.min()) / (B.max() - B.min() + 1e-10)
     return np.sum(np.minimum(A_norm, B_norm)) / np.sum(np.maximum(A_norm, B_norm))
 
+def generate_image(prompt: str):
+    """Generate image using Hugging Face Inference API with requests"""
+    API_URL = "https://api-inference.huggingface.co/models/prompthero/openjourney"
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "width": 512,
+            "height": 512,
+            "num_inference_steps": 50
+        }
+    }
+    
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload)
+        response.raise_for_status()
+        return Image.open(io.BytesIO(response.content)).convert("RGB")
+    except requests.exceptions.HTTPError as err:
+        st.error(f"API Hatası ({err.response.status_code}): {err.response.text}")
+    except Exception as err:
+        st.error(f"Beklenmeyen Hata: {str(err)}")
+    return None
+
 # 4) UI
 st.title("İç ve Dış Dünyalarımızın Soyut Sanatı")
 inner_txt = st.text_area("📖 İç Dünya:", height=120, value="Rüyalarımda gördüğüm renkli dünya")
@@ -55,24 +78,12 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         st.warning("⚠️ Lütfen her iki metni de girin.")
         st.stop()
 
-    # FIXED: Use correct model API endpoint
-    client = InferenceClient(token=HF_TOKEN)
-
     with st.spinner("🖼️ Görseller üretiliyor…"):
-        try:
-            # FIXED: Use the correct API endpoint with model specification
-            img_bytes1 = client.text_to_image(
-                prompt=inner_txt,
-                model="prompthero/openjourney"
-            )
-            img_bytes2 = client.text_to_image(
-                prompt=outer_txt,
-                model="prompthero/openjourney"
-            )
-            img1 = Image.open(io.BytesIO(img_bytes1)).convert("RGB")
-            img2 = Image.open(io.BytesIO(img_bytes2)).convert("RGB")
-        except Exception as e:
-            st.error(f"❌ Görsel oluşturulurken hata: {str(e)}")
+        img1 = generate_image(inner_txt)
+        img2 = generate_image(outer_txt)
+        
+        if img1 is None or img2 is None:
+            st.error("❌ Görsel oluşturulamadı. Lütfen girdileri kontrol edip tekrar deneyin.")
             st.stop()
 
     # Display images
@@ -110,6 +121,6 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         ax.set_title("Görsel Metrik Karşılaştırması", va='bottom')
         ax.legend(loc='upper right', bbox_to_anchor=(1.3,1.1))
         st.pyplot(fig)
-        plt.close(fig)  # Prevent memory leaks
+        plt.close(fig)
     except Exception as e:
         st.error(f"❌ Analiz hatası: {str(e)}")
