@@ -55,13 +55,20 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         st.warning("⚠️ Lütfen her iki metni de girin.")
         st.stop()
 
-    client = InferenceClient(model="prompthero/openjourney", token=HF_TOKEN)
+    # FIXED: Use correct model API endpoint
+    client = InferenceClient(token=HF_TOKEN)
 
     with st.spinner("🖼️ Görseller üretiliyor…"):
         try:
-            # Convert bytes to PIL Images
-            img_bytes1 = client.text_to_image(prompt=inner_txt)
-            img_bytes2 = client.text_to_image(prompt=outer_txt)
+            # FIXED: Use the correct API endpoint with model specification
+            img_bytes1 = client.text_to_image(
+                prompt=inner_txt,
+                model="prompthero/openjourney"
+            )
+            img_bytes2 = client.text_to_image(
+                prompt=outer_txt,
+                model="prompthero/openjourney"
+            )
             img1 = Image.open(io.BytesIO(img_bytes1)).convert("RGB")
             img2 = Image.open(io.BytesIO(img_bytes2)).convert("RGB")
         except Exception as e:
