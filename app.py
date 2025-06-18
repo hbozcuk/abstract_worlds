@@ -35,9 +35,8 @@ if not HF_TOKEN:
     st.error("❌ Hugging Face token eksik! Lütfen Streamlit Secrets'a ekleyin.")
     st.stop()
 
-# 3) Initialize client inside handler for faster startup
+# 3) Utility functions
 
-# 4) Utility functions
 def compute_metrics(arr: np.ndarray):
     r, g, b = arr[...,0], arr[...,1], arr[...,2]
     brightness = (r + g + b).mean() / 3
@@ -55,7 +54,7 @@ def calculate_iou(A, B):
     B_norm = (B - B.min()) / (B.max() - B.min() + 1e-10)
     return np.sum(np.minimum(A_norm, B_norm)) / np.sum(np.maximum(A_norm, B_norm))
 
-# 5) UI
+# 4) UI
 st.title("İç ve Dış Dünyalarımızın Soyut Sanatı")
 inner_txt = st.text_area("📖 İç Dünya:", height=120)
 outer_txt = st.text_area("🌍 Dış Dünya:", height=120)
@@ -65,14 +64,15 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         st.warning("⚠️ Lütfen her iki metni de girin.")
         st.stop()
 
-        client = InferenceClient(model="prompthero/openjourney", token=HF_TOKEN)
+    # Initialize client here for faster startup
+    client = InferenceClient(model="prompthero/openjourney", token=HF_TOKEN)
+
     with st.spinner("🖼️ Görseller üretiliyor…"):
         try:
-            # Call text_to_image with the raw prompt string
-            imgs1 = client.text_to_image(inner_txt)
-            imgs2 = client.text_to_image(outer_txt)
-            img1 = imgs1[0] if isinstance(imgs1, (list, tuple)) else imgs1
-            img2 = imgs2[0] if isinstance(imgs2, (list, tuple)) else imgs2
+            results1 = client.text_to_image(prompt=inner_txt)
+            results2 = client.text_to_image(prompt=outer_txt)
+            img1 = results1[0] if isinstance(results1, (list, tuple)) else results1
+            img2 = results2[0] if isinstance(results2, (list, tuple)) else results2
         except Exception as e:
             st.error(f"❌ Görsel oluşturulurken bir hata oluştu: {e}")
             st.stop()
@@ -86,19 +86,26 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         st.subheader("Dış Dünya")
         st.image(img2, use_column_width=True)
 
-    m1, m2 = compute_metrics(np.array(img1)), compute_metrics(np.array(img2))
+    # Compute metrics and similarity
+    m1 = compute_metrics(np.array(img1))
+    m2 = compute_metrics(np.array(img2))
     iou = calculate_iou(m1, m2)
     st.markdown(f"**🔍 Benzerlik Oranı: {iou:.3f}**")
 
+    # Radar chart
     labels = ["Parlaklık","Kontrast","Renk Canlılığı","Detay"]
     angles = np.linspace(0,2*np.pi,len(labels),endpoint=False)
     angles = np.concatenate([angles,[angles[0]]])
-    m1 += [m1[0]]; m2 += [m2[0]]
+    m1_plot = m1 + [m1[0]]
+    m2_plot = m2 + [m2[0]]
 
-    fig, ax = plt.subplots(figsize=(7,7), subplot_kw={"polar":True})
-    ax.plot(angles, m1, 'o-', label='İç Dünya'); ax.fill(angles, m1, alpha=0.25)
-    ax.plot(angles, m2, 'o-', label='Dış Dünya'); ax.fill(angles, m2, alpha=0.25)
-    ax.set_xticks(angles[:-1]); ax.set_xticklabels(labels)
+    fig, ax = plt.subplots(figsize=(6,6), subplot_kw={"polar":True})
+    ax.plot(angles, m1_plot, 'o-', label='İç Dünya')
+    ax.fill(angles, m1_plot, alpha=0.25)
+    ax.plot(angles, m2_plot, 'o-', label='Dış Dünya')
+    ax.fill(angles, m2_plot, alpha=0.25)
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(labels)
     ax.set_title("Görsel Metrik Karşılaştırması", va='bottom')
     ax.legend(loc='upper right', bbox_to_anchor=(1.3,1.1))
     st.pyplot(fig)
