@@ -65,19 +65,19 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         st.warning("⚠️ Lütfen her iki metni de girin.")
         st.stop()
 
-    client = InferenceClient(model="prompthero/openjourney", token=HF_TOKEN)
+        client = InferenceClient(model="prompthero/openjourney", token=HF_TOKEN)
     with st.spinner("🖼️ Görseller üretiliyor…"):
         try:
-            img1 = client.text_to_image(
-                prompt=f"mdjrny-v4 style abstract art: {inner_txt}"
-            )
-            img2 = client.text_to_image(
-                prompt=f"mdjrny-v4 style abstract art: {outer_txt}"
-            )
+            # Call text_to_image with the raw prompt string
+            imgs1 = client.text_to_image(inner_txt)
+            imgs2 = client.text_to_image(outer_txt)
+            img1 = imgs1[0] if isinstance(imgs1, (list, tuple)) else imgs1
+            img2 = imgs2[0] if isinstance(imgs2, (list, tuple)) else imgs2
         except Exception as e:
             st.error(f"❌ Görsel oluşturulurken bir hata oluştu: {e}")
             st.stop()
 
+    # Display images side by side
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("İç Dünya")
