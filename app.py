@@ -16,6 +16,7 @@ from PIL import Image
 import requests
 import io
 import time
+import base64  # Added for base64 decoding
 
 # 2) Page config
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
@@ -46,9 +47,14 @@ def generate_image_dalle(prompt: str):
         API_URL = "https://bf.dallemini.ai/generate"
         response = requests.post(API_URL, json={"prompt": prompt})
         response.raise_for_status()
+        
+        # Properly decode base64 image
         image_data = response.json()["images"][0]
-        image_bytes = io.BytesIO(bytes(image_data, "utf-8"))
-        return Image.open(image_bytes).convert("RGB")
+        if image_data.startswith("data:image/png;base64,"):
+            image_data = image_data.split(",")[1]
+        
+        image_bytes = base64.b64decode(image_data)
+        return Image.open(io.BytesIO(image_bytes)).convert("RGB")
     except Exception as err:
         st.error(f"❌ Görsel oluşturma hatası: {str(err)}")
         return None
