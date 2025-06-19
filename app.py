@@ -118,8 +118,11 @@ def generate_palette(text, sentiment, complexity):
         h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)
         
         # Adjust saturation and value based on sentiment
-        s = max(0.4, min(1.0, s * (1 + sentiment * 0.2))
-        v = max(0.3, min(1.0, v * (1 + sentiment * 0.1))
+        s = s * (1 + sentiment * 0.2)
+        s = max(0.4, min(1.0, s))  # Clamp between 0.4 and 1.0
+        
+        v = v * (1 + sentiment * 0.1)
+        v = max(0.3, min(1.0, v))  # Clamp between 0.3 and 1.0
         
         # Adjust hue based on complexity
         h = (h + complexity * 0.1) % 1.0
