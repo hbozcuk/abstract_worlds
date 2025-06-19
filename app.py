@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Streamlit app – compares abstract "inner" & "outer" world images using remote inference.
+Streamlit app – compares abstract "inner" & "outer" world images using free DALL·E mini
 """
 
 # 1) Imports & env config
@@ -13,17 +13,13 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-import io
 import requests
+import io
 import time
+from transformers import pipeline
 
 # 2) Page config
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
-HF_TOKEN = st.secrets.get("HUGGINGFACEHUB_API_TOKEN")
-
-if not HF_TOKEN:
-    st.error("❌ Hugging Face token eksik! Lütfen Streamlit Secrets'a HUGGINGFACEHUB_API_TOKEN adıyla ekleyin.")
-    st.stop()
 
 # 3) Utility functions
 def compute_metrics(arr: np.ndarray):
@@ -45,39 +41,22 @@ def calculate_iou(A, B):
     B_norm = (B - B.min()) / (B.max() - B.min() + 1e-10)
     return np.sum(np.minimum(A_norm, B_norm)) / np.sum(np.maximum(A_norm, B_norm))
 
-def generate_image(prompt: str):
-    """Generate image using Hugging Face Inference API"""
-    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    
+def generate_image_dalle(prompt: str):
+    """Generate image using free DALL·E mini API"""
     try:
-        response = requests.post(
-            API_URL,
-            headers=headers,
-            json={"inputs": prompt}
-        )
-        
-        # Handle model loading (503 status)
-        if response.status_code == 503:
-            estimate = response.json().get('estimated_time', 30)
-            st.warning(f"⏳ Model yükleniyor... Lütfen {estimate:.0f} saniye bekleyin")
-            time.sleep(estimate)
-            return generate_image(prompt)  # Retry
-            
-        # Handle other errors
-        if response.status_code != 200:
-            st.error(f"❌ API Hatası ({response.status_code}): {response.text[:200]}")
-            return None
-            
-        return Image.open(io.BytesIO(response.content)).convert("RGB")
-    
+        API_URL = "https://bf.dallemini.ai/generate"
+        response = requests.post(API_URL, json={"prompt": prompt})
+        response.raise_for_status()
+        image_data = response.json()["images"][0]
+        image_bytes = io.BytesIO(bytes(image_data, "utf-8"))
+        return Image.open(image_bytes).convert("RGB")
     except Exception as err:
-        st.error(f"❌ Beklenmeyen Hata: {str(err)}")
+        st.error(f"❌ Görsel oluşturma hatası: {str(err)}")
         return None
 
 # 4) UI
 st.title("İç ve Dış Dünyalarımızın Soyut Sanatı")
-st.info("ℹ️ Ücretsiz Hugging Face API kullanılıyor. Görsel oluşturma 10-30 saniye sürebilir")
+st.info("ℹ️ Ücretsiz DALL·E mini API kullanılıyor. Görsel kalitesi sınırlı olabilir")
 
 inner_txt = st.text_area("📖 İç Dünya:", height=120, value="Rüyalarımda gördüğüm renkli dünya")
 outer_txt = st.text_area("🌍 Dış Dünya:", height=120, value="Şehirdeki gri binalar ve trafik")
@@ -87,12 +66,13 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         st.warning("⚠️ Lütfen her iki metni de girin.")
         st.stop()
 
-    with st.spinner("🖼️ Görseller üretiliyor (bu 10-30 saniye sürebilir)…"):
-        img1 = generate_image(inner_txt)
-        img2 = generate_image(outer_txt)
+    with st.spinner("🖼️ Görseller üretiliyor (10-20 saniye sürebilir)…"):
+        img1 = generate_image_dalle(inner_txt)
+        time.sleep(2)  # Avoid rate limiting
+        img2 = generate_image_dalle(outer_txt)
         
         if img1 is None or img2 is None:
-            st.error("❌ Görsel oluşturulamadı. Lütfen daha sonra tekrar deneyin.")
+            st.error("❌ Görsel oluşturulamadı. Lütfen farklı metinlerle tekrar deneyin.")
             st.stop()
 
     # Display images
