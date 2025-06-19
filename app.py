@@ -15,8 +15,9 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import io
 import requests
+import time
 
-# 2) Page config & token
+# 2) Page config
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
 HF_TOKEN = st.secrets.get("HUGGINGFACEHUB_API_TOKEN")
 
@@ -26,7 +27,6 @@ if not HF_TOKEN:
 
 # 3) Utility functions
 def compute_metrics(arr: np.ndarray):
-    # Handle RGBA images by converting to RGB
     if arr.shape[-1] == 4:
         arr = arr[..., :3]
     r, g, b = arr[...,0], arr[...,1], arr[...,2]
@@ -46,30 +46,39 @@ def calculate_iou(A, B):
     return np.sum(np.minimum(A_norm, B_norm)) / np.sum(np.maximum(A_norm, B_norm))
 
 def generate_image(prompt: str):
-    """Generate image using Hugging Face Inference API with requests"""
-    API_URL = "https://api-inference.huggingface.co/models/prompthero/openjourney"
+    """Generate image using Hugging Face Inference API"""
+    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-2-1"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "width": 512,
-            "height": 512,
-            "num_inference_steps": 50
-        }
-    }
     
     try:
-        response = requests.post(API_URL, headers=headers, json=payload)
-        response.raise_for_status()
+        response = requests.post(
+            API_URL,
+            headers=headers,
+            json={"inputs": prompt}
+        )
+        
+        # Handle model loading (503 status)
+        if response.status_code == 503:
+            estimate = response.json().get('estimated_time', 30)
+            st.warning(f"⏳ Model yükleniyor... Lütfen {estimate:.0f} saniye bekleyin")
+            time.sleep(estimate)
+            return generate_image(prompt)  # Retry
+            
+        # Handle other errors
+        if response.status_code != 200:
+            st.error(f"❌ API Hatası ({response.status_code}): {response.text[:200]}")
+            return None
+            
         return Image.open(io.BytesIO(response.content)).convert("RGB")
-    except requests.exceptions.HTTPError as err:
-        st.error(f"API Hatası ({err.response.status_code}): {err.response.text}")
+    
     except Exception as err:
-        st.error(f"Beklenmeyen Hata: {str(err)}")
-    return None
+        st.error(f"❌ Beklenmeyen Hata: {str(err)}")
+        return None
 
 # 4) UI
 st.title("İç ve Dış Dünyalarımızın Soyut Sanatı")
+st.info("ℹ️ Ücretsiz Hugging Face API kullanılıyor. Görsel oluşturma 10-30 saniye sürebilir")
+
 inner_txt = st.text_area("📖 İç Dünya:", height=120, value="Rüyalarımda gördüğüm renkli dünya")
 outer_txt = st.text_area("🌍 Dış Dünya:", height=120, value="Şehirdeki gri binalar ve trafik")
 
@@ -78,12 +87,12 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         st.warning("⚠️ Lütfen her iki metni de girin.")
         st.stop()
 
-    with st.spinner("🖼️ Görseller üretiliyor…"):
+    with st.spinner("🖼️ Görseller üretiliyor (bu 10-30 saniye sürebilir)…"):
         img1 = generate_image(inner_txt)
         img2 = generate_image(outer_txt)
         
         if img1 is None or img2 is None:
-            st.error("❌ Görsel oluşturulamadı. Lütfen girdileri kontrol edip tekrar deneyin.")
+            st.error("❌ Görsel oluşturulamadı. Lütfen daha sonra tekrar deneyin.")
             st.stop()
 
     # Display images
@@ -108,8 +117,8 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         labels = ["Parlaklık","Kontrast","Renk Canlılığı","Detay"]
         angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False)
         angles = np.concatenate([angles, [angles[0]]])
-        m1_plot = m1 + [m1[0]]
-        m2_plot = m2 + [m2[0]]
+        m1_plot = np.concatenate([m1, [m1[0]]])
+        m2_plot = np.concatenate([m2, [m2[0]]])
 
         fig, ax = plt.subplots(figsize=(6,6), subplot_kw={"polar":True})
         ax.plot(angles, m1_plot, 'o-', label='İç Dünya')
