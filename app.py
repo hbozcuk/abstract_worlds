@@ -16,7 +16,6 @@ from PIL import Image
 import requests
 import io
 import time
-from transformers import pipeline
 
 # 2) Page config
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
