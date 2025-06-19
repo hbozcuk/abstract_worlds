@@ -18,7 +18,6 @@ import hashlib
 import re
 import math
 import colorsys
-import textwrap
 
 # 2) Page config
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
@@ -378,7 +377,12 @@ def generate_complex_art(text, width=1024, height=1024):
         
         # Apply transformations to the layer
         if random.random() > 0.5:
-            layer_img = layer_img.rotate(random.randint(-30, 30), expand=True, resample=Image.BICUBIC)
+            # Rotate without expanding to maintain size
+            layer_img = layer_img.rotate(
+                random.randint(-30, 30), 
+                resample=Image.BICUBIC, 
+                expand=False  # CRITICAL FIX: Maintain original size
+            )
         
         # Blend layer into main image
         img = Image.alpha_composite(img.convert('RGBA'), layer_img)
