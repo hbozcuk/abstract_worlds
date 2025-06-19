@@ -18,7 +18,6 @@ import hashlib
 import re
 import math
 import colorsys
-from scipy.interpolate import splprep, splev
 import textwrap
 
 # 2) Page config
@@ -119,8 +118,8 @@ def generate_palette(text, sentiment, complexity):
         h, s, v = colorsys.rgb_to_hsv(r/255, g/255, b/255)
         
         # Adjust saturation and value based on sentiment
-        s = min(1.0, max(0.4, s * (1 + sentiment * 0.2))
-        v = min(1.0, max(0.3, v * (1 + sentiment * 0.1))
+        s = max(0.4, min(1.0, s * (1 + sentiment * 0.2))
+        v = max(0.3, min(1.0, v * (1 + sentiment * 0.1))
         
         # Adjust hue based on complexity
         h = (h + complexity * 0.1) % 1.0
@@ -131,36 +130,29 @@ def generate_palette(text, sentiment, complexity):
     return adjusted_palette
 
 def generate_organic_shape(width, height, complexity=0.7):
-    """Generate a complex organic shape using spline curves"""
-    # Determine number of control points based on complexity
-    num_points = int(10 + 20 * complexity)
-    
-    # Generate control points
+    """Generate a complex organic shape"""
+    # Create a base shape
     center_x = width // 2
     center_y = height // 2
     max_radius = min(width, height) * (0.3 + 0.3 * complexity)
     
-    angles = np.linspace(0, 2 * math.pi, num_points)
-    radii = [max_radius * (0.7 + 0.6 * random.random()) for _ in range(num_points)]
-    
     points = []
+    num_points = int(20 + 30 * complexity)
+    
     for i in range(num_points):
-        radius = radii[i]
-        angle = angles[i]
-        x = center_x + radius * math.cos(angle)
-        y = center_y + radius * math.sin(angle)
+        angle = 2 * math.pi * i / num_points
+        # Add randomness to the radius
+        radius_variation = 0.7 + 0.6 * random.random()
+        radius = max_radius * radius_variation
+        
+        # Add randomness to the angle
+        angle_variation = angle + (random.random() - 0.5) * math.pi / 6
+        
+        x = center_x + radius * math.cos(angle_variation)
+        y = center_y + radius * math.sin(angle_variation)
         points.append((x, y))
     
-    # Create closed spline curve
-    points.append(points[0])
-    points = np.array(points)
-    
-    # Smooth the curve
-    tck, u = splprep(points.T, u=None, s=0.0, per=1)
-    u_new = np.linspace(u.min(), u.max(), int(100 * (1 + complexity)))
-    x_new, y_new = splev(u_new, tck, der=0)
-    
-    return [(x, y) for x, y in zip(x_new, y_new)]
+    return points
 
 def generate_geometric_shape(width, height, complexity=0.7):
     """Generate a complex geometric shape with recursive elements"""
@@ -175,8 +167,10 @@ def generate_geometric_shape(width, height, complexity=0.7):
     points = []
     for i in range(num_sides):
         angle = 2 * math.pi * i / num_sides
-        x = center_x + radius * math.cos(angle)
-        y = center_y + radius * math.sin(angle)
+        # Add some randomness to position
+        radius_variation = 0.8 + 0.4 * random.random()
+        x = center_x + radius * radius_variation * math.cos(angle)
+        y = center_y + radius * radius_variation * math.sin(angle)
         points.append((x, y))
     
     # Add recursive elements based on complexity
@@ -194,11 +188,15 @@ def generate_geometric_shape(width, height, complexity=0.7):
             sub_radius = radius * (0.1 + 0.2 * random.random())
             sub_sides = int(3 + 4 * random.random())
             
+            sub_points = []
             for j in range(sub_sides):
                 angle = 2 * math.pi * j / sub_sides
                 x = mid_x + sub_radius * math.cos(angle)
                 y = mid_y + sub_radius * math.sin(angle)
-                points.append((x, y))
+                sub_points.append((x, y))
+            
+            # Add the sub-shape points
+            points.extend(sub_points)
     
     return points
 
