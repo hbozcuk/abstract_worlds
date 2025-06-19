@@ -464,7 +464,7 @@ with col1:
     
 with col2:
     st.markdown('<div class="text-box">', unsafe_allow_html=True)
-    outer_txt = st.text_area("🌍 Dış Dünya (Çevrenizde olan şeyleri, duyduğunuz, gördüğünüz, dokunduğunuz vs. şeyleri birkaç cümle ile anlatın):", height=120, 
+    outer_txt = st.text_area("🌍 Dış Dünya (Çevrenizdekileri, duyduğunuz, gördüğünüz, dokunduğunuz vs. şeyleri birkaç cümle ile anlatın):", height=120, 
                             value="")
     st.markdown('</div>', unsafe_allow_html=True)
 
