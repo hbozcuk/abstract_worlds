@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Streamlit app – compares abstract "inner" & "outer" world images using free DALL·E mini
+Streamlit app – generates abstract art based on inner/outer world concepts
 """
 
 # 1) Imports & env config
@@ -16,7 +16,8 @@ from PIL import Image
 import requests
 import io
 import time
-import base64  # Added for base64 decoding
+import base64
+import random
 
 # 2) Page config
 st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
@@ -41,27 +42,42 @@ def calculate_iou(A, B):
     B_norm = (B - B.min()) / (B.max() - B.min() + 1e-10)
     return np.sum(np.minimum(A_norm, B_norm)) / np.sum(np.maximum(A_norm, B_norm))
 
-def generate_image_dalle(prompt: str):
-    """Generate image using free DALL·E mini API"""
+def generate_abstract_art(prompt: str):
+    """Generate abstract art using NeuralBlender API"""
     try:
-        API_URL = "https://bf.dallemini.ai/generate"
-        response = requests.post(API_URL, json={"prompt": prompt})
+        # Generate seed based on prompt for more consistent results
+        seed = sum(ord(c) for c in prompt) % 1000000
+        
+        # Use NeuralBlender API for better abstract art
+        API_URL = "https://api.neuralblender.com/api/v1/text2image"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "prompt": f"abstract representation of '{prompt}'",
+            "style": "abstract-expressionism",
+            "seed": seed,
+            "width": 512,
+            "height": 512,
+            "steps": 30
+        }
+        
+        response = requests.post(API_URL, json=payload, headers=headers)
         response.raise_for_status()
         
-        # Properly decode base64 image
-        image_data = response.json()["images"][0]
-        if image_data.startswith("data:image/png;base64,"):
-            image_data = image_data.split(",")[1]
+        # Get image URL from response
+        image_url = response.json()["output_url"]
         
-        image_bytes = base64.b64decode(image_data)
-        return Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        # Download image
+        img_response = requests.get(image_url)
+        img_response.raise_for_status()
+        
+        return Image.open(io.BytesIO(img_response.content)).convert("RGB")
     except Exception as err:
         st.error(f"❌ Görsel oluşturma hatası: {str(err)}")
         return None
 
 # 4) UI
 st.title("İç ve Dış Dünyalarımızın Soyut Sanatı")
-st.info("ℹ️ Ücretsiz DALL·E mini API kullanılıyor. Görsel kalitesi sınırlı olabilir")
+st.info("ℹ️ Soyut sanat API kullanılıyor. Görseller metninizin soyut yorumlarıdır")
 
 inner_txt = st.text_area("📖 İç Dünya:", height=120, value="Rüyalarımda gördüğüm renkli dünya")
 outer_txt = st.text_area("🌍 Dış Dünya:", height=120, value="Şehirdeki gri binalar ve trafik")
@@ -71,10 +87,10 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
         st.warning("⚠️ Lütfen her iki metni de girin.")
         st.stop()
 
-    with st.spinner("🖼️ Görseller üretiliyor (10-20 saniye sürebilir)…"):
-        img1 = generate_image_dalle(inner_txt)
-        time.sleep(2)  # Avoid rate limiting
-        img2 = generate_image_dalle(outer_txt)
+    with st.spinner("🖼️ Görseller üretiliyor (15-30 saniye sürebilir)…"):
+        img1 = generate_abstract_art(inner_txt)
+        time.sleep(1)  # Brief pause
+        img2 = generate_abstract_art(outer_txt)
         
         if img1 is None or img2 is None:
             st.error("❌ Görsel oluşturulamadı. Lütfen farklı metinlerle tekrar deneyin.")
@@ -84,10 +100,10 @@ if st.button("🎨 Oluştur ve Karşılaştır"):
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("İç Dünya")
-        st.image(img1, use_column_width=True)
+        st.image(img1, use_container_width=True)  # Fixed deprecation
     with col2:
         st.subheader("Dış Dünya")
-        st.image(img2, use_column_width=True)
+        st.image(img2, use_container_width=True)  # Fixed deprecation
 
     # Compute metrics
     try:
