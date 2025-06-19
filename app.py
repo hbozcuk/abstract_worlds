@@ -430,7 +430,7 @@ def generate_complex_art(text, width=1024, height=1024):
 
 # 4) UI
 st.title("İç ve Dış Dünyalarımızın Soyut Sanatı")
-st.info("ℹ️ Metin girişlerinize göre otomatik olarak oluşturulan karmaşık soyut sanat eserleri (1024px çözünürlük)")
+st.info("ℹ️ Metin girişlerinize göre otomatik olarak oluşturulan soyut sanat eserleri")
 
 # Custom CSS for better layout
 st.markdown("""
@@ -458,14 +458,14 @@ st.markdown("""
 col1, col2 = st.columns(2)
 with col1:
     st.markdown('<div class="text-box">', unsafe_allow_html=True)
-    inner_txt = st.text_area("📖 İç Dünya:", height=120, 
-                            value="Rüyalarımda gördüğüm renkli dünya, sonsuz olasılıklar, neşeli kaos ve organik formlar")
+    inner_txt = st.text_area("📖 İç Dünya (Duygu, düşünce veya rüyalarınızı birkaç cümle ile anlatın):", height=120, 
+                            value="")
     st.markdown('</div>', unsafe_allow_html=True)
     
 with col2:
     st.markdown('<div class="text-box">', unsafe_allow_html=True)
-    outer_txt = st.text_area("🌍 Dış Dünya:", height=120, 
-                            value="Şehirdeki gri binalar, trafik karmaşası, sistematik düzen ve geometrik yapılar")
+    outer_txt = st.text_area("🌍 Dış Dünya (Çevrenizde olan şeyleri, duyduğunuz, gördüğünüz, dokunduğunuz vs. şeyleri birkaç cümle ile anlatın):", height=120, 
+                            value="")
     st.markdown('</div>', unsafe_allow_html=True)
 
 if st.button("🎨 Oluştur ve Karşılaştır", use_container_width=True):
