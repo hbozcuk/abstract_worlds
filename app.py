@@ -24,17 +24,40 @@ st.set_page_config(page_title="Soyut İç & Dış Dünya", layout="wide")
 
 # 3) Utility functions
 def compute_metrics(arr: np.ndarray):
+    """
+    Compute image metrics:
+    1. Brightness (Parlaklık)
+    2. Contrast (Kontrast)
+    3. Colorfulness (Renk Canlılığı)
+    4. Warmth (Sıcaklık)
+    5. Complexity (Karmaşıklık)
+    """
     if arr.shape[-1] == 4:
         arr = arr[..., :3]
     r, g, b = arr[...,0], arr[...,1], arr[...,2]
+    
+    # 1. Brightness
     brightness = (r + g + b).mean() / 3
+    
+    # 2. Contrast
     contrast = np.std(r) + np.std(g) + np.std(b)
+    
+    # 3. Colorfulness
     rg, yb = r - g, 0.5*(r+g) - b
     colorfulness = np.sqrt(np.std(rg)**2 + np.std(yb)**2)
+    
+    # 4. Warmth - ratio of warm to cool colors
+    warm = (r + g/2).mean()
+    cool = (b + g/2).mean()
+    warmth = warm / (warm + cool + 1e-10)
+    
+    # 5. Complexity - measure of visual complexity
     gray = 0.2989*r + 0.5870*g + 0.1140*b
     gx, gy = np.gradient(gray)
-    detail = np.mean(np.sqrt(gx**2 + gy**2))
-    return [brightness, contrast, colorfulness, detail]
+    edge_strength = np.sqrt(gx**2 + gy**2)
+    complexity = np.mean(edge_strength) + np.std(edge_strength)
+    
+    return [brightness, contrast, colorfulness, warmth, complexity]
 
 def calculate_iou(A, B):
     A, B = np.array(A), np.array(B)
@@ -381,7 +404,7 @@ def generate_complex_art(text, width=1024, height=1024):
             layer_img = layer_img.rotate(
                 random.randint(-30, 30), 
                 resample=Image.BICUBIC, 
-                expand=False  # CRITICAL FIX: Maintain original size
+                expand=False
             )
         
         # Blend layer into main image
@@ -430,7 +453,7 @@ def generate_complex_art(text, width=1024, height=1024):
 
 # 4) UI
 st.title("İç ve Dış Dünyalarımızın Soyut Sanatı")
-st.info("ℹ️ Metin girişlerinize göre otomatik olarak oluşturulan soyut sanat eserleri")
+st.info("ℹ️ Metin girişlerinize göre otomatik olarak oluşturulan karmaşık soyut sanat eserleri (1024px çözünürlük)")
 
 # Custom CSS for better layout
 st.markdown("""
@@ -452,20 +475,38 @@ st.markdown("""
         color: #555;
         margin-top: 10px;
     }
+    .stTextArea textarea::placeholder {
+        color: #888;
+        font-style: italic;
+    }
+    .metric-explanation {
+        font-size: 0.85rem;
+        color: #666;
+        margin-top: -10px;
+        margin-bottom: 15px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 with col1:
     st.markdown('<div class="text-box">', unsafe_allow_html=True)
-    inner_txt = st.text_area("📖 İç Dünya (Duygu, düşünce veya rüyalarınızı birkaç cümle ile anlatın):", height=120, 
-                            value="")
+    inner_txt = st.text_area(
+        "📖 İç Dünya (Duygu, düşünce veya rüyalarınızı birkaç cümle ile anlatın):", 
+        height=120, 
+        value="",
+        placeholder="Örnek: Rüyalarımda gördüğüm renkli dünya, sonsuz olasılıklar, neşeli kaos ve organik formlar"
+    )
     st.markdown('</div>', unsafe_allow_html=True)
     
 with col2:
     st.markdown('<div class="text-box">', unsafe_allow_html=True)
-    outer_txt = st.text_area("🌍 Dış Dünya (Çevrenizdekileri, duyduğunuz, gördüğünüz, dokunduğunuz vs. şeyleri birkaç cümle ile anlatın):", height=120, 
-                            value="")
+    outer_txt = st.text_area(
+        "🌍 Dış Dünya (Çevrenizde olan şeyleri, duyduğunuz, gördüğünüz, dokunduğunuz vs. şeyleri anlatın):", 
+        height=120, 
+        value="",
+        placeholder="Örnek: Şehirdeki gri binalar, trafik karmaşası, sistematik düzen ve geometrik yapılar"
+    )
     st.markdown('</div>', unsafe_allow_html=True)
 
 if st.button("🎨 Oluştur ve Karşılaştır", use_container_width=True):
@@ -515,8 +556,21 @@ if st.button("🎨 Oluştur ve Karşılaştır", use_container_width=True):
         </div>
         """, unsafe_allow_html=True)
 
-        # Radar chart
-        labels = ["Parlaklık", "Kontrast", "Renk Canlılığı", "Detay"]
+        # Radar chart with new metrics
+        labels = ["Parlaklık", "Kontrast", "Renk Canlılığı", "Sıcaklık", "Karmaşıklık"]
+        
+        # Metric explanations
+        st.markdown("""
+        <div class="metric-explanation">
+            <b>Metrik Açıklamaları:</b><br>
+            <b>Parlaklık:</b> Görselin ortalama aydınlık seviyesi<br>
+            <b>Kontrast:</b> Renk ve tonlar arasındaki farklılıklar<br>
+            <b>Renk Canlılığı:</b> Renklerin doygunluk ve çeşitliliği<br>
+            <b>Sıcaklık:</b> Sıcak renklerin (kırmızı, turuncu) soğuk renklere (mavi, yeşil) oranı<br>
+            <b>Karmaşıklık:</b> Görseldeki detay ve desen zenginliği
+        </div>
+        """, unsafe_allow_html=True)
+        
         angles = np.linspace(0, 2*np.pi, len(labels), endpoint=False)
         angles = np.concatenate([angles, [angles[0]]])
         m1_plot = np.concatenate([m1, [m1[0]]])
@@ -539,5 +593,16 @@ if st.button("🎨 Oluştur ve Karşılaştır", use_container_width=True):
         
         st.pyplot(fig)
         plt.close(fig)
+        
+        # Display metric values in a table
+        metric_data = {
+            "Metrik": labels,
+            "İç Dünya": [f"{x:.2f}" for x in m1],
+            "Dış Dünya": [f"{x:.2f}" for x in m2],
+            "Fark": [f"{abs(a-b):.2f}" for a, b in zip(m1, m2)]
+        }
+        st.subheader("📊 Metrik Değerleri")
+        st.table(metric_data)
+        
     except Exception as e:
         st.error(f"❌ Analiz hatası: {str(e)}")
