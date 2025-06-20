@@ -29,8 +29,7 @@ def compute_metrics(arr: np.ndarray):
     1. Brightness (Parlaklık)
     2. Contrast (Kontrast)
     3. Colorfulness (Renk Canlılığı)
-    4. Warmth (Sıcaklık)
-    5. Complexity (Karmaşıklık)
+    4. Complexity (Karmaşıklık)
     """
     if arr.shape[-1] == 4:
         arr = arr[..., :3]
@@ -46,18 +45,13 @@ def compute_metrics(arr: np.ndarray):
     rg, yb = r - g, 0.5*(r+g) - b
     colorfulness = np.sqrt(np.std(rg)**2 + np.std(yb)**2)
     
-    # 4. Warmth - ratio of warm to cool colors
-    warm = (r + g/2).mean()
-    cool = (b + g/2).mean()
-    warmth = warm / (warm + cool + 1e-10)
-    
-    # 5. Complexity - measure of visual complexity
+    # 4. Complexity - measure of visual complexity
     gray = 0.2989*r + 0.5870*g + 0.1140*b
     gx, gy = np.gradient(gray)
     edge_strength = np.sqrt(gx**2 + gy**2)
     complexity = np.mean(edge_strength) + np.std(edge_strength)
     
-    return [brightness, contrast, colorfulness, warmth, complexity]
+    return [brightness, contrast, colorfulness, complexity]
 
 def calculate_iou(A, B):
     A, B = np.array(A), np.array(B)
@@ -723,7 +717,7 @@ if st.button("🎨 Oluştur ve Karşılaştır", use_container_width=True):
         """, unsafe_allow_html=True)
 
         # Radar chart with new metrics
-        labels = ["Parlaklık", "Kontrast", "Renk Canlılığı", "Sıcaklık", "Karmaşıklık"]
+        labels = ["Parlaklık", "Kontrast", "Renk Canlılığı", "Karmaşıklık"]
         
         # Metric explanations
         st.markdown("""
@@ -732,7 +726,6 @@ if st.button("🎨 Oluştur ve Karşılaştır", use_container_width=True):
             <b>Parlaklık:</b> Görselin ortalama aydınlık seviyesi<br>
             <b>Kontrast:</b> Renk ve tonlar arasındaki farklılıklar<br>
             <b>Renk Canlılığı:</b> Renklerin doygunluk ve çeşitliliği<br>
-            <b>Sıcaklık:</b> Sıcak renklerin (kırmızı, turuncu) soğuk renklere (mavi, yeşil) oranı<br>
             <b>Karmaşıklık:</b> Görseldeki detay ve desen zenginliği
         </div>
         """, unsafe_allow_html=True)
