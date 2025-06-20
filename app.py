@@ -73,7 +73,9 @@ def detect_themes(text):
         "cosmic": ["yıldız", "gezegen", "evren", "galaksi", "uzay", "güneş", "ay", "nebula", "kara delik", "kuasar"],
         "emotional": ["aşk", "nefret", "korku", "mutluluk", "üzüntü", "öfke", "huzur", "endişe", "coşku", "umut"],
         "organic": ["hücre", "dna", "damar", "kas", "organ", "bakteri", "mikrop", "doku", "hücresel", "biyolojik"],
-        "mechanical": ["motor", "dişli", "makine", "robot", "vida", "kablo", "çark", "bıçak", "türbin", "piston"]
+        "mechanical": ["motor", "dişli", "makine", "robot", "vida", "kablo", "çark", "bıçak", "türbin", "piston"],
+        "fractal": ["fraktal", "matematik", "geometri", "desen", "özyineleme"],
+        "crystalline": ["kristal", "buz", "cam", "parlak", "keskin", "köşeli", "düzlem"]
     }
     
     detected = []
@@ -123,6 +125,10 @@ def generate_palette(text, sentiment, complexity):
                 palette.extend([(205, 92, 92), (240, 128, 128), (255, 160, 122)])
             elif theme == "mechanical":
                 palette.extend([(192, 192, 192), (169, 169, 169), (128, 128, 128)])
+            elif theme == "fractal":
+                palette.extend([(0, 191, 255), (30, 144, 255), (70, 130, 180)])
+            elif theme == "crystalline":
+                palette.extend([(224, 255, 255), (240, 248, 255), (245, 245, 245)])
     
     # Ensure we have enough colors
     if len(palette) < 8:
@@ -155,34 +161,57 @@ def generate_palette(text, sentiment, complexity):
     return adjusted_palette
 
 def generate_organic_shape(width, height, complexity=0.7):
-    """Generate a complex organic shape"""
-    # Create a base shape
+    """Generate a complex organic shape with higher complexity"""
     center_x = width // 2
     center_y = height // 2
     max_radius = min(width, height) * (0.3 + 0.3 * complexity)
     
     points = []
-    num_points = int(20 + 30 * complexity)
+    num_points = int(30 + 50 * complexity)  # Increased points for more detail
     
     for i in range(num_points):
         angle = 2 * math.pi * i / num_points
-        # Add randomness to the radius
-        radius_variation = 0.7 + 0.6 * random.random()
+        # Add more variation
+        radius_variation = 0.5 + 0.8 * random.random()
         radius = max_radius * radius_variation
         
-        # Add randomness to the angle
-        angle_variation = angle + (random.random() - 0.5) * math.pi / 6
+        # Add more randomness to the angle
+        angle_variation = angle + (random.random() - 0.5) * math.pi / 4 * (1 + complexity)
         
         x = center_x + radius * math.cos(angle_variation)
         y = center_y + radius * math.sin(angle_variation)
         points.append((x, y))
     
+    # Add recursive elements
+    if complexity > 0.5:
+        sub_shapes = int(3 + 5 * complexity)
+        for _ in range(sub_shapes):
+            idx = random.randint(0, len(points)-1)
+            p1 = points[idx]
+            p2 = points[(idx+1) % len(points)]
+            
+            # Create a smaller organic shape at midpoint
+            mid_x = (p1[0] + p2[0]) / 2
+            mid_y = (p1[1] + p2[1]) / 2
+            sub_radius = max_radius * (0.15 + 0.25 * random.random())
+            
+            num_sub_points = int(10 + 20 * complexity)
+            sub_points = []
+            for j in range(num_sub_points):
+                sub_angle = 2 * math.pi * j / num_sub_points
+                sub_radius_var = 0.7 + 0.6 * random.random()
+                x = mid_x + sub_radius * sub_radius_var * math.cos(sub_angle)
+                y = mid_y + sub_radius * sub_radius_var * math.sin(sub_angle)
+                sub_points.append((x, y))
+            
+            points.extend(sub_points)
+    
     return points
 
 def generate_geometric_shape(width, height, complexity=0.7):
-    """Generate a complex geometric shape with recursive elements"""
+    """Generate a complex geometric shape with more elements"""
     # Determine number of sides based on complexity
-    num_sides = int(3 + 7 * complexity)
+    num_sides = int(5 + 10 * complexity)
     
     # Create base polygon
     center_x = width // 2
@@ -192,101 +221,204 @@ def generate_geometric_shape(width, height, complexity=0.7):
     points = []
     for i in range(num_sides):
         angle = 2 * math.pi * i / num_sides
-        # Add some randomness to position
-        radius_variation = 0.8 + 0.4 * random.random()
-        x = center_x + radius * radius_variation * math.cos(angle)
-        y = center_y + radius * radius_variation * math.sin(angle)
+        # Add more randomness
+        radius_variation = 0.7 + 0.6 * random.random()
+        angle_variation = angle + (random.random() - 0.5) * math.pi / 8
+        x = center_x + radius * radius_variation * math.cos(angle_variation)
+        y = center_y + radius * radius_variation * math.sin(angle_variation)
         points.append((x, y))
     
-    # Add recursive elements based on complexity
-    if complexity > 0.5:
-        sub_shapes = int(3 * complexity)
+    # Add recursive elements
+    if complexity > 0.4:
+        sub_shapes = int(4 + 6 * complexity)
         for _ in range(sub_shapes):
-            # Choose a point to add a sub-shape
             idx = random.randint(0, len(points)-1)
             p1 = points[idx]
             p2 = points[(idx+1) % len(points)]
             
-            # Create a smaller polygon at midpoint
+            # Create a smaller geometric shape at midpoint
             mid_x = (p1[0] + p2[0]) / 2
             mid_y = (p1[1] + p2[1]) / 2
-            sub_radius = radius * (0.1 + 0.2 * random.random())
-            sub_sides = int(3 + 4 * random.random())
+            sub_radius = radius * (0.1 + 0.25 * random.random())
+            sub_sides = int(3 + 7 * random.random())
             
             sub_points = []
             for j in range(sub_sides):
-                angle = 2 * math.pi * j / sub_sides
-                x = mid_x + sub_radius * math.cos(angle)
-                y = mid_y + sub_radius * math.sin(angle)
+                sub_angle = 2 * math.pi * j / sub_sides
+                sub_radius_var = 0.8 + 0.4 * random.random()
+                x = mid_x + sub_radius * sub_radius_var * math.cos(sub_angle)
+                y = mid_y + sub_radius * sub_radius_var * math.sin(sub_angle)
                 sub_points.append((x, y))
             
-            # Add the sub-shape points
             points.extend(sub_points)
     
     return points
 
 def generate_cosmic_shape(width, height, complexity=0.7):
-    """Generate a cosmic-inspired shape with spirals and star clusters"""
-    # Create a spiral base
+    """Generate cosmic-inspired shape with more details"""
     center_x = width // 2
     center_y = height // 2
     max_radius = min(width, height) * (0.3 + 0.2 * complexity)
     
     points = []
-    num_turns = 2 + int(3 * complexity)
-    num_points_per_turn = int(30 * complexity)
+    num_turns = 3 + int(4 * complexity)
+    num_points_per_turn = int(50 * complexity)
     
     for i in range(num_turns * num_points_per_turn):
         progress = i / (num_turns * num_points_per_turn)
         angle = 2 * math.pi * num_turns * progress
         radius = max_radius * progress
         
-        # Add some randomness
-        radius_var = 0.8 + 0.4 * random.random()
-        angle_var = angle + (random.random() - 0.5) * math.pi / 4
+        # Add more randomness
+        radius_var = 0.7 + 0.6 * random.random()
+        angle_var = angle + (random.random() - 0.5) * math.pi / 3
         
         x = center_x + radius * radius_var * math.cos(angle_var)
         y = center_y + radius * radius_var * math.sin(angle_var)
         points.append((x, y))
     
-    # Add star clusters
-    num_clusters = int(5 * complexity)
+    # Add more star clusters
+    num_clusters = int(8 + 12 * complexity)
     for _ in range(num_clusters):
-        cluster_x = random.randint(int(width*0.2), int(width*0.8))
-        cluster_y = random.randint(int(height*0.2), int(height*0.8))
-        cluster_size = int(20 + 80 * complexity * random.random())
-        num_stars = int(5 + 15 * complexity)
+        cluster_x = random.randint(int(width*0.1), int(width*0.9))
+        cluster_y = random.randint(int(height*0.1), int(height*0.9))
+        cluster_size = int(30 + 100 * complexity * random.random())
+        num_stars = int(10 + 30 * complexity)
         
         for _ in range(num_stars):
             angle = random.random() * 2 * math.pi
-            distance = cluster_size * random.random()
+            distance = cluster_size * random.random() * random.random()  # More stars near center
             x = cluster_x + distance * math.cos(angle)
             y = cluster_y + distance * math.sin(angle)
+            points.append((x, y))
+    
+    # Add nebula clouds
+    num_nebulae = int(3 + 5 * complexity)
+    for _ in range(num_nebulae):
+        nebula_x = random.randint(int(width*0.1), int(width*0.9))
+        nebula_y = random.randint(int(height*0.1), int(height*0.9))
+        nebula_size = int(50 + 150 * complexity)
+        num_cloud_points = int(50 + 150 * complexity)
+        
+        for _ in range(num_cloud_points):
+            angle = random.random() * 2 * math.pi
+            distance = nebula_size * random.random() * 0.7
+            x = nebula_x + distance * math.cos(angle)
+            y = nebula_y + distance * math.sin(angle)
             points.append((x, y))
     
     return points
 
 def generate_chaotic_shape(width, height, complexity=0.7):
-    """Generate a chaotic shape with irregular patterns"""
+    """Generate chaotic shape with more complexity"""
     points = []
-    num_points = int(100 + 400 * complexity)
+    num_points = int(200 + 800 * complexity)  # More points for more chaos
     
-    # Create a random walk
-    x, y = width // 2, height // 2
-    for _ in range(num_points):
-        # Save current point
-        points.append((x, y))
+    # Create multiple random walks
+    for walk in range(int(2 + 3 * complexity)):
+        x, y = random.randint(0, width), random.randint(0, height)
+        for _ in range(num_points // int(2 + 3 * complexity)):
+            points.append((x, y))
+            
+            # Move in a random direction with varying step sizes
+            angle = random.random() * 2 * math.pi
+            distance = 1 + 15 * complexity * random.random()
+            
+            x += distance * math.cos(angle)
+            y += distance * math.sin(angle)
+            
+            # Constrain to canvas
+            x = max(0, min(width, x))
+            y = max(0, min(height, y))
+    
+    return points
+
+def generate_fractal_shape(width, height, complexity=0.7):
+    """Generate fractal-inspired recursive shape"""
+    center_x = width // 2
+    center_y = height // 2
+    max_radius = min(width, height) * (0.2 + 0.3 * complexity)
+    
+    def recursive_branch(x, y, angle, depth, max_depth, branch_length):
+        if depth > max_depth:
+            return []
         
-        # Move in a random direction
+        points = []
+        # Add points along this branch
+        num_segments = int(3 + 7 * complexity)
+        for i in range(num_segments):
+            progress = i / num_segments
+            px = x + branch_length * progress * math.cos(angle)
+            py = y + branch_length * progress * math.sin(angle)
+            points.append((px, py))
+            
+            # Add sub-branches
+            if depth < max_depth and random.random() < 0.7:
+                branch_angle = angle + (random.random() - 0.5) * math.pi / 2
+                sub_length = branch_length * (0.4 + 0.3 * random.random())
+                points.extend(recursive_branch(px, py, branch_angle, depth+1, max_depth, sub_length))
+        
+        return points
+    
+    # Start recursion
+    max_depth = int(2 + 4 * complexity)
+    initial_angle = random.random() * 2 * math.pi
+    branch_length = max_radius * (0.5 + 0.5 * random.random())
+    points = recursive_branch(center_x, center_y, initial_angle, 0, max_depth, branch_length)
+    
+    # Add central cluster
+    num_center_points = int(50 + 100 * complexity)
+    for _ in range(num_center_points):
         angle = random.random() * 2 * math.pi
-        distance = 1 + 10 * complexity * random.random()
+        distance = max_radius * 0.1 * random.random()
+        x = center_x + distance * math.cos(angle)
+        y = center_y + distance * math.sin(angle)
+        points.append((x, y))
+    
+    return points
+
+def generate_crystalline_shape(width, height, complexity=0.7):
+    """Generate sharp crystalline shapes"""
+    center_x = width // 2
+    center_y = height // 2
+    max_radius = min(width, height) * (0.3 + 0.3 * complexity)
+    
+    points = []
+    num_crystals = int(5 + 15 * complexity)
+    
+    for _ in range(num_crystals):
+        # Crystal center
+        crystal_x = center_x + (random.random() - 0.5) * width * 0.8
+        crystal_y = center_y + (random.random() - 0.5) * height * 0.8
+        crystal_size = max_radius * (0.1 + 0.4 * random.random())
         
-        x += distance * math.cos(angle)
-        y += distance * math.sin(angle)
+        # Crystal points (sharp angles)
+        num_points = random.randint(5, 10)
+        crystal_points = []
+        for i in range(num_points):
+            angle = 2 * math.pi * i / num_points + random.random() * math.pi/6
+            distance = crystal_size * (0.7 + 0.6 * random.random())
+            x = crystal_x + distance * math.cos(angle)
+            y = crystal_y + distance * math.sin(angle)
+            crystal_points.append((x, y))
         
-        # Constrain to canvas
-        x = max(0, min(width, x))
-        y = max(0, min(height, y))
+        points.extend(crystal_points)
+        
+        # Add internal structure
+        if complexity > 0.5:
+            num_internal = int(3 + 7 * complexity)
+            for _ in range(num_internal):
+                internal_x = crystal_x + (random.random() - 0.5) * crystal_size * 0.5
+                internal_y = crystal_y + (random.random() - 0.5) * crystal_size * 0.5
+                internal_size = crystal_size * (0.1 + 0.3 * random.random())
+                
+                num_internal_points = random.randint(3, 6)
+                for j in range(num_internal_points):
+                    angle = 2 * math.pi * j / num_internal_points
+                    distance = internal_size * (0.8 + 0.4 * random.random())
+                    x = internal_x + distance * math.cos(angle)
+                    y = internal_y + distance * math.sin(angle)
+                    points.append((x, y))
     
     return points
 
@@ -339,22 +471,27 @@ def generate_complex_art(text, width=1024, height=1024):
     themes = detect_themes(text)
     shape_generators = []
     
-    if "nature" in themes:
+    if "nature" in themes or "organic" in themes:
         shape_generators.append(generate_organic_shape)
-    if "urban" in themes:
+    if "urban" in themes or "mechanical" in themes:
         shape_generators.append(generate_geometric_shape)
     if "cosmic" in themes:
         shape_generators.append(generate_cosmic_shape)
     if "emotional" in themes or "chaotic" in themes:
         shape_generators.append(generate_chaotic_shape)
+    if "fractal" in themes:
+        shape_generators.append(generate_fractal_shape)
+    if "crystalline" in themes:
+        shape_generators.append(generate_crystalline_shape)
     
     # Fallback if no specific themes detected
     if not shape_generators:
         shape_generators = [generate_organic_shape, generate_geometric_shape, 
-                            generate_cosmic_shape, generate_chaotic_shape]
+                            generate_cosmic_shape, generate_chaotic_shape,
+                            generate_fractal_shape, generate_crystalline_shape]
     
     # Generate multiple shape layers
-    num_layers = int(3 + 5 * complexity)
+    num_layers = int(5 + 8 * complexity)  # More layers for more depth
     for layer in range(num_layers):
         # Create a new transparent layer
         layer_img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
@@ -364,22 +501,22 @@ def generate_complex_art(text, width=1024, height=1024):
         shape_gen = random.choice(shape_generators)
         
         # Generate multiple shapes in this layer
-        num_shapes = int(1 + 4 * complexity)
+        num_shapes = int(3 + 8 * complexity)  # More shapes per layer
         for _ in range(num_shapes):
             # Random position and size
             center_x = random.randint(int(width*0.1), int(width*0.9))
             center_y = random.randint(int(height*0.1), int(height*0.9))
-            shape_width = int(width * (0.1 + 0.4 * random.random()))
-            shape_height = int(height * (0.1 + 0.4 * random.random()))
+            shape_width = int(width * (0.1 + 0.6 * random.random()))  # Larger possible shapes
+            shape_height = int(height * (0.1 + 0.6 * random.random()))
             
             # Generate shape points
             points = shape_gen(shape_width, shape_height, complexity)
             
             # Move shape to position
-            min_x = min(p[0] for p in points)
-            min_y = min(p[1] for p in points)
-            max_x = max(p[0] for p in points)
-            max_y = max(p[1] for p in points)
+            min_x = min(p[0] for p in points) if points else 0
+            min_y = min(p[1] for p in points) if points else 0
+            max_x = max(p[0] for p in points) if points else shape_width
+            max_y = max(p[1] for p in points) if points else shape_height
             
             scale_x = shape_width / (max_x - min_x) if max_x != min_x else 1
             scale_y = shape_height / (max_y - min_y) if max_y != min_y else 1
@@ -396,15 +533,37 @@ def generate_complex_art(text, width=1024, height=1024):
             fill_color = color + (alpha,)
             
             # Draw the shape
-            layer_draw.polygon(scaled_points, fill=fill_color)
+            if len(scaled_points) > 2:
+                layer_draw.polygon(scaled_points, fill=fill_color)
         
         # Apply transformations to the layer
-        if random.random() > 0.5:
+        if random.random() > 0.3:  # More likely to rotate
             # Rotate without expanding to maintain size
             layer_img = layer_img.rotate(
-                random.randint(-30, 30), 
+                random.randint(-45, 45), 
                 resample=Image.BICUBIC, 
                 expand=False
+            )
+        
+        # Apply distortion
+        if complexity > 0.6 and random.random() > 0.7:
+            # Create displacement map
+            disp_map = Image.new('RGB', (width, height), (128, 128, 128))
+            disp_draw = ImageDraw.Draw(disp_map)
+            for _ in range(int(50 * complexity)):
+                x = random.randint(0, width)
+                y = random.randint(0, height)
+                r = random.randint(5, 20)
+                disp_draw.ellipse([x-r, y-r, x+r, y+r], 
+                                  fill=(random.randint(0,255), random.randint(0,255), random.randint(0,255)))
+            
+            # Apply displacement
+            layer_img = layer_img.transform(
+                (width, height), 
+                Image.MESH, 
+                [(0, 0, width, height)], 
+                Image.BILINEAR, 
+                disp_map
             )
         
         # Blend layer into main image
@@ -417,13 +576,13 @@ def generate_complex_art(text, width=1024, height=1024):
     texture = Image.new('RGBA', (width, height), (0, 0, 0, 0))
     texture_draw = ImageDraw.Draw(texture)
     
-    num_texture_points = int(5000 * complexity)
+    num_texture_points = int(8000 * complexity)  # More texture points
     for _ in range(num_texture_points):
         x = random.randint(0, width)
         y = random.randint(0, height)
-        size = random.randint(1, 5)
+        size = random.randint(1, 8)
         color = random.choice(palette)
-        alpha = random.randint(10, 50)
+        alpha = random.randint(10, 100)
         texture_draw.ellipse([x, y, x+size, y+size], fill=color + (alpha,))
     
     img = Image.alpha_composite(img.convert('RGBA'), texture).convert('RGB')
@@ -432,22 +591,29 @@ def generate_complex_art(text, width=1024, height=1024):
     if sentiment > 1:
         # Bright and vibrant
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.2)
-        enhancer = ImageEnhance.Color(img)
         img = enhancer.enhance(1.3)
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(1.4)
         enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(1.1)
+        img = enhancer.enhance(1.2)
     elif sentiment < -1:
         # Dark and moody
         enhancer = ImageEnhance.Brightness(img)
-        img = enhancer.enhance(0.8)
+        img = enhancer.enhance(0.7)
         enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.1)
-        img = img.filter(ImageFilter.GaussianBlur(radius=1))
+        img = enhancer.enhance(1.2)
+        img = img.filter(ImageFilter.GaussianBlur(radius=1.5))
     
     # Add sharpening for detail
     enhancer = ImageEnhance.Sharpness(img)
-    img = enhancer.enhance(1.5)
+    img = enhancer.enhance(2.0)
+    
+    # Add subtle glow effect for cosmic themes
+    if "cosmic" in themes and random.random() > 0.4:
+        glow = img.filter(ImageFilter.GaussianBlur(radius=10))
+        enhancer = ImageEnhance.Brightness(glow)
+        glow = enhancer.enhance(1.5)
+        img = Image.blend(img, glow, 0.3)
     
     return img
 
