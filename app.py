@@ -539,26 +539,17 @@ def generate_complex_art(text, width=1024, height=1024):
                 expand=False
             )
         
-        # Apply distortion
+        # Apply simple distortion effect instead of problematic transform
         if complexity > 0.6 and random.random() > 0.7:
-            # Create displacement map
-            disp_map = Image.new('RGB', (width, height), (128, 128, 128))
-            disp_draw = ImageDraw.Draw(disp_map)
-            for _ in range(int(50 * complexity)):
-                x = random.randint(0, width)
-                y = random.randint(0, height)
-                r = random.randint(5, 20)
-                disp_draw.ellipse([x-r, y-r, x+r, y+r], 
-                                  fill=(random.randint(0,255), random.randint(0,255), random.randint(0,255)))
+            # Apply a simple wave distortion instead of complex transform
+            wave_img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+            wave_draw = ImageDraw.Draw(wave_img)
             
-            # Apply displacement
-            layer_img = layer_img.transform(
-                (width, height), 
-                Image.MESH, 
-                [(0, 0, width, height)], 
-                Image.BILINEAR, 
-                disp_map
-            )
+            for y in range(0, height, 10):
+                offset = int(5 * math.sin(y / 20))
+                wave_draw.line([(0, y), (width, y)], fill=(255, 255, 255, 10), width=2)
+            
+            layer_img = ImageChops.add(layer_img, wave_img)
         
         # Blend layer into main image
         img = Image.alpha_composite(img.convert('RGBA'), layer_img)
